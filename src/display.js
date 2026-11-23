@@ -407,8 +407,8 @@ const Disp = {
     }
     const label = (v.label || '') + (mult ? ' (' + MULT[mult] + ')' : ''), right = v.right || '', info = (v.info || []).filter(Boolean);
     $('#stage').dataset.dir = v.dir || '';
-    /* numbers sit against the right edge so their size is comparable from one entry to the next; clocks stay centred */
-    this.setRow(this.main, place(tokens(txt, th.attach), cap, v.text != null ? 'center' : 'right'), eink ? 1 : 0);
+    /* numbers (and clocks, via ralign) sit against the right edge so their size is comparable from one entry to the next */
+    this.setRow(this.main, place(tokens(txt, th.attach), cap, (v.text != null && !v.ralign) ? 'center' : 'right'), eink ? 1 : 0);
     if (th.alpha) {
       this.setRow(this.lab, place(tokens(between(label, right, this.lab.cells.length).toUpperCase(), th.attach), this.lab.cells.length, 'left'));
       if (state.info) this.setRow(this.inf, place(tokens(fitSegs(info, th.attach ? this.inf.cells.length + 4 : this.inf.cells.length).toUpperCase(), th.attach), this.inf.cells.length, 'center'));

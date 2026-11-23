@@ -2,6 +2,9 @@
 
 Newest first. Bump `VERSION` in `build.py` with every change.
 
+## 0.3.6 — 23 Nov 2026
+- Clocks are now right-justified (against the right edge) like numbers, instead of centred.
+
 ## 0.3.5 — 23 Nov 2026
 - 12-hour clock AM/PM suffix now has no space before it (`4:11:01AM`), so a full `H:MM:SSAM` fits within 8 cells even with a two-digit hour.
 

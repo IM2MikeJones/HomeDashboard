@@ -478,7 +478,7 @@ function clockView(it) {
     /* 12-hour clocks carry an AM/PM suffix on the time itself (two characters, no space so H:MM:SSAM fits in 8 cells). */
     const ap = it.h12 && p.dayPeriod ? p.dayPeriod.toUpperCase().replace(/\./g, '') : '';
     const date = dtf(it.tz, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(now).replace(/,/g, '').toUpperCase();
-    return { label: (it.label || tzCity(it.tz)).toUpperCase(), right: off,
+    return { label: (it.label || tzCity(it.tz)).toUpperCase(), right: off, ralign: 1,
       text: hour + ':' + p.minute + ':' + p.second + ap, alt: hour + ':' + p.minute + ap, info: [date] };
   } catch (e) { return { label: String(it.tz).toUpperCase(), value: null, info: ['UNKNOWN TIME ZONE'] }; }
 }
