@@ -2,21 +2,14 @@
 
 Newest first. Bump `VERSION` in `build.py` with every change.
 
-## 0.2.5 — 22 Nov 2026
-- Added a small 4px margin at the top and both sides of the screen (bottom stays flush), via padding on `#board`. The fit math is unaffected since it measures the padded modules.
+## 0.3.0 — 22 Nov 2026
+Layout polish and a colourful, full-width odometer weather.
 
-## 0.2.4 — 22 Nov 2026
-- Odometer weather now spans the full window width instead of being pinned to the ticker width, so the chiclets run edge-to-edge under the (slightly narrower) ticker. Only the bezel-less odometer layout is affected; bezeled themes still match the ticker width.
-
-## 0.2.3 — 22 Nov 2026
-- Odometer weather now uses the accent colour like the other themes: weather icons, high temps and hourly temps take the accent colour, the selected day's ring is drawn in the accent, and the card borders are subtly accent-tinted. Labels, lows and meta stay muted grey. The default White accent looks the same as before.
-
-## 0.2.2 — 22 Nov 2026
-- Edge-to-edge layout: removed the outer window margins (top/left/right of the ticker and the sides/bottom of the weather) so both widgets sit flush to the window edges. Only the small gap between the two widgets remains.
+- Full-screen fill: removed the large outer window margins so the ticker and weather use the whole window, then added back a small 4px breathing room at the top and both sides (bottom stays flush).
 - The ticker now fills the full width in short/landscape windows too — it gets just enough vertical budget to become width-bound (capped at 58% of the stage so the weather keeps room), instead of being pinned to ~48% and leaving large side margins.
-
-## 0.2.1 — 22 Nov 2026
-- Weather now keeps the full ticker width in short/landscape windows. The fit no longer scales the whole widget uniformly (which narrowed and centred it when vertical space was tight); instead the card flexbox always fills the width and only the content's font-size shrinks to fit the available height. Card metrics are now em-based off a `.wx-fit` base size (odometer bumps that base for its 30% larger content).
+- Weather keeps the full width in short windows: the fit no longer scales the whole widget uniformly (which narrowed and centred it when vertical space was tight); instead the card flexbox always fills the width and only the content's font-size shrinks to fit the available height. Card metrics are now em-based off a `.wx-fit` base size.
+- Odometer weather now uses the accent colour like the other themes: weather icons, high temps and hourly temps take the accent colour, the selected day's ring is drawn in the accent, and the card borders are subtly accent-tinted. Labels, lows and meta stay muted grey; the default White accent looks the same as before.
+- Odometer weather now spans the full window width instead of being pinned to the ticker width, so the chiclets run edge-to-edge under the (slightly narrower) ticker. Bezeled themes still match the ticker width.
 
 ## 0.2.0 — 22 Nov 2026
 Adds the weather module and fully themes it to the ticker.
