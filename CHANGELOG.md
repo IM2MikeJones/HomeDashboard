@@ -2,6 +2,9 @@
 
 Newest first. Bump `VERSION` in `build.py` with every change.
 
+## 0.3.2 — 23 Nov 2026
+- Odometer weather: changed the muted grey chiclet text (day labels, low temps, precip/wind meta) to white. Icons and high/hourly temps keep the accent colour.
+
 ## 0.3.1 — 23 Nov 2026
 - Added 3px to the right screen margin (now 7px; top and left stay 4px, bottom flush).
 
