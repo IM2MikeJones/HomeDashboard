@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<meta name="generator" content="HomeDashboard 0.3.3">
+<meta name="generator" content="HomeDashboard 0.3.4">
 <title>HomeDashboard</title>
 <style>
 *{box-sizing:border-box}
@@ -46,7 +46,7 @@ button,input,select{font:inherit;color:inherit}
 .wx-status{color:var(--wx-muted,inherit);font-size:.6em;letter-spacing:.04em;text-transform:none;font-weight:500;text-shadow:none}
 /* Bezel-less weather (odometer): drop the header so chiclets float right up under the ticker. */
 #stage.t-odo .wx-head{display:none}
-#stage.t-odo.layout-below #modTicker{padding-bottom:6px}
+#stage.t-odo.layout-below #modTicker{padding-bottom:6px;justify-content:flex-start}
 /* Day and hour chiclets butt directly together: no gap between the two rows, and the touching
    edges are squared off (day cards round only on top, hour cards round only on the bottom). */
 #stage.t-odo .wx-days{padding-bottom:0}
@@ -648,7 +648,7 @@ kbd{background:#22262d;border:1px solid #343944;border-radius:4px;padding:0 5px;
     <h2>Keys</h2>
     <p><kbd>Space</kbd> pause &nbsp; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> previous / next &nbsp; <kbd>F</kbd> fullscreen &nbsp; <kbd>S</kbd> settings</p>
     <div class="line"><button class="btn" id="bReset">Reset everything</button></div>
-    <p>HomeDashboard 0.3.3</p>
+    <p>HomeDashboard 0.3.4</p>
   </section>
 </aside>
 <datalist id="dlAssets"></datalist>
@@ -2237,7 +2237,7 @@ function boot() {
 }
 boot();
 
-window.HD = { version: "0.3.3", state, A, S, V, Disp, WX, quote, legUSD, fmtNum, needs, viewOf, frame, renderWeather, fetchWeather };
+window.HD = { version: "0.3.4", state, A, S, V, Disp, WX, quote, legUSD, fmtNum, needs, viewOf, frame, renderWeather, fetchWeather };
 })();
 </script>
 </body>

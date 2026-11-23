@@ -2,6 +2,9 @@
 
 Newest first. Bump `VERSION` in `build.py` with every change.
 
+## 0.3.4 — 23 Nov 2026
+- Odometer ticker now floats to the left (was centred), so its left edge lines up with the full-width weather below; the breathing room sits on the right.
+
 ## 0.3.3 — 23 Nov 2026
 - Odometer ticker: made the outer bezel outline and the bezel background black (were a dark-grey gradient with a light-grey edge). The inner display frame is unchanged.
 
