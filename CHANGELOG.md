@@ -2,6 +2,10 @@
 
 Newest first. Bump `VERSION` in `build.py` with every change.
 
+## 0.2.2 — 22 Nov 2026
+- Edge-to-edge layout: removed the outer window margins (top/left/right of the ticker and the sides/bottom of the weather) so both widgets sit flush to the window edges. Only the small gap between the two widgets remains.
+- The ticker now fills the full width in short/landscape windows too — it gets just enough vertical budget to become width-bound (capped at 58% of the stage so the weather keeps room), instead of being pinned to ~48% and leaving large side margins.
+
 ## 0.2.1 — 22 Nov 2026
 - Weather now keeps the full ticker width in short/landscape windows. The fit no longer scales the whole widget uniformly (which narrowed and centred it when vertical space was tight); instead the card flexbox always fills the width and only the content's font-size shrinks to fit the available height. Card metrics are now em-based off a `.wx-fit` base size (odometer bumps that base for its 30% larger content).
 

@@ -279,12 +279,16 @@ const Disp = {
     st.style.right = open ? $('#panel').offsetWidth + 'px' : '0';
     dev.style.fontSize = '100px';
     const r = dev.getBoundingClientRect(), W = pane.clientWidth;
-    /* Stacked layout: ticker pane is auto-height (top-aligned), so size against stage budget, not pane. */
-    let H = pane.clientHeight;
-    if (state.layout !== 'right') H = Math.max(140, st.clientHeight * .48);
-    else if (!H) H = st.clientHeight;
-    if (!r.width || !r.height || !W || !H) return;
     const widthFit = (this.th && this.th.fitW) || .92;
+    /* Stacked layout: ticker pane is auto-height (top-aligned), so size against stage budget, not pane.
+       Give the ticker just enough vertical budget to become width-bound (so it fills the full width),
+       but never more than 58% of the stage so the weather below keeps room. */
+    let H = pane.clientHeight;
+    if (state.layout !== 'right') {
+      const widthH = r.height * (W * widthFit / r.width);   /* ticker height when exactly width-bound */
+      H = Math.max(140, Math.min(st.clientHeight * .58, widthH / .82 + 1));
+    } else if (!H) H = st.clientHeight;
+    if (!r.width || !r.height || !W || !H) return;
     dev.style.fontSize = Math.max(8, 100 * Math.min(W * widthFit / r.width, H * .82 / r.height)) + 'px';
     this.fitWeather();
   },

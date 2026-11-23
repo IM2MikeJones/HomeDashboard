@@ -6,7 +6,7 @@ There is **no server and nothing to install**. Open `home-dashboard.html` in a b
 
 HomeDashboard started from [Ticker Clock](https://github.com/IM2MikeJones/Ticker-Clock) 1.2.8 and is developed separately under this name.
 
-Current version: **0.2.1** — see [CHANGELOG.md](CHANGELOG.md).
+Current version: **0.2.2** — see [CHANGELOG.md](CHANGELOG.md).
 
 ## Run it
 

@@ -9,11 +9,11 @@ button,input,select{font:inherit;color:inherit}
 #stage.layout-below #board{flex-direction:column;align-items:stretch;justify-content:flex-start}
 #stage.layout-right #board{flex-direction:row;align-items:flex-start;justify-content:flex-start}
 #modTicker{display:flex;align-items:flex-start;justify-content:center;min-width:0;min-height:0;overflow:hidden}
-#stage.layout-below #modTicker{flex:0 0 auto;padding:18px 22px 10px}
-#stage.layout-right #modTicker{flex:1 1 68%;width:0;align-self:flex-start;padding:18px 10px 18px 22px}
+#stage.layout-below #modTicker{flex:0 0 auto;padding:0 0 10px}
+#stage.layout-right #modTicker{flex:1 1 68%;width:0;align-self:flex-start;padding:0 10px 0 0}
 #modWeather{display:flex;align-items:stretch;min-width:0;min-height:0;overflow:hidden;color:var(--wx-text,color-mix(in srgb,var(--on,#e8e8e8) 88%,#fff));font-family:var(--wx-font,inherit)}
-#stage.layout-below #modWeather{flex:1 1 auto;min-height:0;padding:0 22px 20px;justify-content:center;align-items:flex-start}
-#stage.layout-right #modWeather{flex:0 0 32%;width:32%;align-self:stretch;padding:18px 22px 18px 10px}
+#stage.layout-below #modWeather{flex:1 1 auto;min-height:0;padding:0;justify-content:center;align-items:flex-start}
+#stage.layout-right #modWeather{flex:0 0 32%;width:32%;align-self:stretch;padding:0 0 0 10px}
 .device{font-size:100px;display:inline-flex;flex-direction:column;align-items:center;position:relative;white-space:nowrap;line-height:1;user-select:none}
 
 /* ---------- weather module (token-driven; --wx-* set per .t-* in themes.css) ---------- */
