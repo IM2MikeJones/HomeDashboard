@@ -2,6 +2,9 @@
 
 Newest first. Bump `VERSION` in `build.py` with every change.
 
+## 0.3.1 — 23 Nov 2026
+- Added 3px to the right screen margin (now 7px; top and left stay 4px, bottom flush).
+
 ## 0.3.0 — 22 Nov 2026
 Layout polish and a colourful, full-width odometer weather.
 
