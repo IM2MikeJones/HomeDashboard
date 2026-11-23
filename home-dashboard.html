@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<meta name="generator" content="HomeDashboard 0.3.4">
+<meta name="generator" content="HomeDashboard 0.3.5">
 <title>HomeDashboard</title>
 <style>
 *{box-sizing:border-box}
@@ -648,7 +648,7 @@ kbd{background:#22262d;border:1px solid #343944;border-radius:4px;padding:0 5px;
     <h2>Keys</h2>
     <p><kbd>Space</kbd> pause &nbsp; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> previous / next &nbsp; <kbd>F</kbd> fullscreen &nbsp; <kbd>S</kbd> settings</p>
     <div class="line"><button class="btn" id="bReset">Reset everything</button></div>
-    <p>HomeDashboard 0.3.4</p>
+    <p>HomeDashboard 0.3.5</p>
   </section>
 </aside>
 <datalist id="dlAssets"></datalist>
@@ -1134,8 +1134,8 @@ function clockView(it) {
     let off = 'UTC';
     try { off = (dtf(it.tz, { timeZoneName: 'shortOffset' }).formatToParts(now).find(x => x.type === 'timeZoneName') || { value: 'UTC' }).value.replace('GMT', 'UTC'); } catch (e) { /* older browsers */ }
     const hour = it.h12 ? String(+p.hour) : p.hour;
-    /* 12-hour clocks carry an AM/PM suffix on the time itself (two characters) rather than only in the corner. */
-    const ap = it.h12 && p.dayPeriod ? ' ' + p.dayPeriod.toUpperCase().replace(/\./g, '') : '';
+    /* 12-hour clocks carry an AM/PM suffix on the time itself (two characters, no space so H:MM:SSAM fits in 8 cells). */
+    const ap = it.h12 && p.dayPeriod ? p.dayPeriod.toUpperCase().replace(/\./g, '') : '';
     const date = dtf(it.tz, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(now).replace(/,/g, '').toUpperCase();
     return { label: (it.label || tzCity(it.tz)).toUpperCase(), right: off,
       text: hour + ':' + p.minute + ':' + p.second + ap, alt: hour + ':' + p.minute + ap, info: [date] };
@@ -2242,7 +2242,7 @@ function boot() {
 }
 boot();
 
-window.HD = { version: "0.3.4", state, A, S, V, Disp, WX, quote, legUSD, fmtNum, needs, viewOf, frame, renderWeather, fetchWeather };
+window.HD = { version: "0.3.5", state, A, S, V, Disp, WX, quote, legUSD, fmtNum, needs, viewOf, frame, renderWeather, fetchWeather };
 })();
 </script>
 </body>
