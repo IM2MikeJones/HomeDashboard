@@ -2,6 +2,9 @@
 
 Newest first. Bump `VERSION` in `build.py` with every change.
 
+## 0.2.3 — 22 Nov 2026
+- Odometer weather now uses the accent colour like the other themes: weather icons, high temps and hourly temps take the accent colour, the selected day's ring is drawn in the accent, and the card borders are subtly accent-tinted. Labels, lows and meta stay muted grey. The default White accent looks the same as before.
+
 ## 0.2.2 — 22 Nov 2026
 - Edge-to-edge layout: removed the outer window margins (top/left/right of the ticker and the sides/bottom of the weather) so both widgets sit flush to the window edges. Only the small gap between the two widgets remains.
 - The ticker now fills the full width in short/landscape windows too — it gets just enough vertical budget to become width-bound (capped at 58% of the stage so the weather keeps room), instead of being pinned to ~48% and leaving large side margins.
