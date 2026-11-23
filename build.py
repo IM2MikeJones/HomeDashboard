@@ -1,7 +1,7 @@
 """Bundle the source parts into one self-contained HTML file. Run: python3 build.py"""
 import pathlib
 
-VERSION = "0.2.4"  # bump on every change and add a line to CHANGELOG.md
+VERSION = "0.2.5"  # bump on every change and add a line to CHANGELOG.md
 
 root = pathlib.Path(__file__).parent
 src = root / "src"

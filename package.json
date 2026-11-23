@@ -1,6 +1,6 @@
 {
   "name": "home-dashboard",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "private": true,
   "description": "Single-file browser home dashboard for prices, clocks and Bitcoin vitals. The app itself has no dependencies; these are for the tests only.",
   "scripts": {

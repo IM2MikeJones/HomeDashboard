@@ -2,6 +2,9 @@
 
 Newest first. Bump `VERSION` in `build.py` with every change.
 
+## 0.2.5 — 22 Nov 2026
+- Added a small 4px margin at the top and both sides of the screen (bottom stays flush), via padding on `#board`. The fit math is unaffected since it measures the padded modules.
+
 ## 0.2.4 — 22 Nov 2026
 - Odometer weather now spans the full window width instead of being pinned to the ticker width, so the chiclets run edge-to-edge under the (slightly narrower) ticker. Only the bezel-less odometer layout is affected; bezeled themes still match the ticker width.
 
