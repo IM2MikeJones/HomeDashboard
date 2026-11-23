@@ -26,7 +26,9 @@ button,input,select{font:inherit;color:inherit}
 #stage.layout-right .wx-panel{align-self:stretch;height:100%}
 .wx-panel::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:2;
   background:var(--wx-overlay,none);opacity:var(--wx-overlay-opacity,0);animation:var(--wx-overlay-anim,none)}
-.wx-fit{position:relative;z-index:1;width:100%;transform-origin:top left;will-change:transform}
+/* Base content size; fitWeather shrinks this font-size to fit the height while the card
+   flexbox keeps filling the full width. 16px keeps the px values below unchanged by default. */
+.wx-fit{position:relative;z-index:1;width:100%;font-size:16px;transform-origin:top left;will-change:transform}
 .wx-head{display:flex;justify-content:space-between;align-items:baseline;gap:calc(var(--wx-base,60px)*.18);margin-bottom:calc(var(--wx-base,60px)*.26);
   font-size:var(--wx-head-size,calc(var(--wx-base,60px)*.3));letter-spacing:.04em;text-transform:uppercase;font-weight:var(--wx-weight,650);white-space:nowrap;
   text-shadow:var(--wx-head-shadow,none)}
@@ -42,31 +44,26 @@ button,input,select{font:inherit;color:inherit}
 #stage.t-odo .wx-hours{margin-top:0}
 #stage.t-odo .wx-day{border-radius:var(--wx-card-radius,12px) var(--wx-card-radius,12px) 0 0}
 #stage.t-odo .wx-hour{border-radius:0 0 var(--wx-card-radius,12px) var(--wx-card-radius,12px)}
-/* Chiclet content enlarged 30% on odometer. */
-#stage.t-odo .wx-day .lab,#stage.t-odo .wx-hour .lab{font-size:14.3px}
-#stage.t-odo .wx-day .ico,#stage.t-odo .wx-hour .ico{width:36.4px;height:36.4px}
-#stage.t-odo .wx-day .hi{font-size:23.4px}
-#stage.t-odo .wx-day .lo{font-size:18.2px}
-#stage.t-odo .wx-day .meta,#stage.t-odo .wx-hour .meta{font-size:14.3px}
-#stage.t-odo .wx-hour .temp{font-size:20.8px}
-.wx-days,.wx-hours{display:flex;gap:8px;overflow:visible;padding-bottom:4px;width:100%}
+/* Chiclet content enlarged 30% on odometer (bumps the em base; everything inside scales with it). */
+#stage.t-odo .wx-fit{font-size:20.8px}
+.wx-days,.wx-hours{display:flex;gap:.5em;overflow:visible;padding-bottom:.25em;width:100%}
 .wx-hours{margin-top:calc(var(--wx-base,60px)*.26)}
 #stage.layout-right .wx-days,#stage.layout-right .wx-hours{flex-flow:row wrap;justify-content:center}
-.wx-day,.wx-hour{flex:1 1 0;min-width:0;padding:10px 10px 11px;border:var(--wx-card-border,1px solid rgba(255,255,255,.2));
+.wx-day,.wx-hour{flex:1 1 0;min-width:0;padding:.625em .625em .6875em;border:var(--wx-card-border,1px solid rgba(255,255,255,.2));
   border-radius:var(--wx-card-radius,8px);background:var(--wx-card-bg,rgba(255,255,255,.07));cursor:pointer;text-align:center;color:var(--wx-card-color,inherit)}
-#stage.layout-right .wx-day,#stage.layout-right .wx-hour{flex:1 1 90px}
+#stage.layout-right .wx-day,#stage.layout-right .wx-hour{flex:1 1 5.6em}
 .wx-day:hover,.wx-hour:hover{filter:brightness(1.08)}
 .wx-day[aria-selected=true]{background:var(--wx-card-lit-bg,var(--wx-card-bg));box-shadow:var(--wx-card-lit-shadow,none);border-color:transparent}
 .wx-day[aria-selected=true] .ico,.wx-day[aria-selected=true] .hi{filter:var(--wx-glow,none)}
-.wx-day .lab,.wx-hour .lab{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--wx-card-muted,var(--wx-muted,inherit));margin-bottom:6px;font-weight:var(--wx-weight,650)}
-.wx-day .ico,.wx-hour .ico{display:block;width:28px;height:28px;margin:0 auto 6px;color:inherit}
+.wx-day .lab,.wx-hour .lab{display:block;font-size:.6875em;letter-spacing:.08em;text-transform:uppercase;color:var(--wx-card-muted,var(--wx-muted,inherit));margin-bottom:.375em;font-weight:var(--wx-weight,650)}
+.wx-day .ico,.wx-hour .ico{display:block;width:1.75em;height:1.75em;margin:0 auto .375em;color:inherit}
 .wx-day .ico svg,.wx-hour .ico svg{width:100%;height:100%;display:block}
-.wx-day .temps{display:flex;justify-content:center;align-items:baseline;gap:7px;font-variant-numeric:tabular-nums}
-.wx-day .hi{font-size:18px;font-weight:var(--wx-weight,750)}
-.wx-day .lo{font-size:14px;color:var(--wx-card-muted,var(--wx-muted,inherit));font-weight:600}
-.wx-day .meta,.wx-hour .meta{display:block;margin-top:6px;font-size:11px;line-height:1.35;color:var(--wx-card-muted,var(--wx-muted,inherit))}
-.wx-hour .temp{display:block;font-size:16px;font-weight:var(--wx-weight,750);font-variant-numeric:tabular-nums}
-.wx-empty{padding:18px 8px;font-size:13px;color:var(--wx-muted,inherit);letter-spacing:.04em}
+.wx-day .temps{display:flex;justify-content:center;align-items:baseline;gap:.4375em;font-variant-numeric:tabular-nums}
+.wx-day .hi{font-size:1.125em;font-weight:var(--wx-weight,750)}
+.wx-day .lo{font-size:.875em;color:var(--wx-card-muted,var(--wx-muted,inherit));font-weight:600}
+.wx-day .meta,.wx-hour .meta{display:block;margin-top:.375em;font-size:.6875em;line-height:1.35;color:var(--wx-card-muted,var(--wx-muted,inherit))}
+.wx-hour .temp{display:block;font-size:1em;font-weight:var(--wx-weight,750);font-variant-numeric:tabular-nums}
+.wx-empty{padding:1.125em .5em;font-size:.8125em;color:var(--wx-muted,inherit);letter-spacing:.04em}
 .row{display:flex;justify-content:center;align-items:flex-end}
 .row.label{font-size:.42em}
 .row.info{font-size:.3em}

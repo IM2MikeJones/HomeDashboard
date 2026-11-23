@@ -352,6 +352,7 @@ const Disp = {
       }
     }
     fit.style.transform = 'none';
+    fit.style.fontSize = '';           /* revert to the theme's base content size (CSS) */
     panel.style.height = '';
     const cs = getComputedStyle(panel);
     const padL = parseFloat(cs.paddingLeft), padR = parseFloat(cs.paddingRight), padT = parseFloat(cs.paddingTop), padB = parseFloat(cs.paddingBottom);
@@ -365,13 +366,19 @@ const Disp = {
       const modPadB = parseFloat(getComputedStyle(modW).paddingBottom) || 0;
       availH = st.clientHeight - ticker.getBoundingClientRect().height - modPadB - 8 - padT - padB;
     }
-    const natW = fit.scrollWidth, natH = fit.scrollHeight;
-    if (!availW || availH <= 0 || !natW || !natH) return;
-    const s = Math.max(.06, Math.min(availW / natW, availH / natH, 2.4));
-    const scaledW = natW * s, scaledH = natH * s;
-    const tx = Math.max(0, (availW - scaledW) / 2);
-    fit.style.transform = 'translateX(' + tx + 'px) scale(' + s + ')';
-    panel.style.height = right ? '' : (scaledH + padT + padB) + 'px';
+    if (!availW || availH <= 0) return;
+    /* The cards' flexbox always fills the full width (= ticker width); we fit the HEIGHT by shrinking
+       the content's base font-size, never enlarging past it. This keeps the widget full-width even in
+       short windows instead of uniformly scaling down (which would narrow and centre it). */
+    const fsBase = parseFloat(getComputedStyle(fit).fontSize) || 16;
+    let natH = fit.scrollHeight;
+    if (natH > 0) {
+      let fs = natH > availH ? Math.max(5, fsBase * availH / natH) : fsBase;
+      fit.style.fontSize = fs + 'px';
+      const h2 = fit.scrollHeight;     /* wrapping makes height non-linear in font-size; correct once */
+      if (h2 > availH + 0.5) { fs = Math.max(5, fs * availH / h2); fit.style.fontSize = fs + 'px'; }
+    }
+    panel.style.height = right ? '' : (fit.scrollHeight + padT + padB) + 'px';
   },
   setRow(row, toks, off) {
     const th = this.th, E = ENG[th.eng], first = this.first; off = off || 0;

@@ -2,6 +2,9 @@
 
 Newest first. Bump `VERSION` in `build.py` with every change.
 
+## 0.2.1 — 22 Nov 2026
+- Weather now keeps the full ticker width in short/landscape windows. The fit no longer scales the whole widget uniformly (which narrowed and centred it when vertical space was tight); instead the card flexbox always fills the width and only the content's font-size shrinks to fit the available height. Card metrics are now em-based off a `.wx-fit` base size (odometer bumps that base for its 30% larger content).
+
 ## 0.2.0 — 22 Nov 2026
 Adds the weather module and fully themes it to the ticker.
 
