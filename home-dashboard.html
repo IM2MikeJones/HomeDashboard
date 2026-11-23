@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<meta name="generator" content="HomeDashboard 0.2.3">
+<meta name="generator" content="HomeDashboard 0.2.4">
 <title>HomeDashboard</title>
 <style>
 *{box-sizing:border-box}
@@ -648,7 +648,7 @@ kbd{background:#22262d;border:1px solid #343944;border-radius:4px;padding:0 5px;
     <h2>Keys</h2>
     <p><kbd>Space</kbd> pause &nbsp; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> previous / next &nbsp; <kbd>F</kbd> fullscreen &nbsp; <kbd>S</kbd> settings</p>
     <div class="line"><button class="btn" id="bReset">Reset everything</button></div>
-    <p>HomeDashboard 0.2.3</p>
+    <p>HomeDashboard 0.2.4</p>
   </section>
 </aside>
 <datalist id="dlAssets"></datalist>
@@ -1524,7 +1524,8 @@ const Disp = {
       panel.style.paddingRight = '0';
       panel.style.paddingBottom = '0';
       panel.style.paddingLeft = '0';
-      panel.style.width = right ? '' : Math.round(device.getBoundingClientRect().width) + 'px';
+      /* Span the full window width (not the ticker width): clear the inline width so .wx-panel's width:100% fills the module. */
+      panel.style.width = '';
       panel.style.setProperty('--wx-base', parseFloat(getComputedStyle(device).fontSize) + 'px');
       panel.style.removeProperty('--wx-head-size');
       const head = panel.querySelector('.wx-head');
@@ -2236,7 +2237,7 @@ function boot() {
 }
 boot();
 
-window.HD = { version: "0.2.3", state, A, S, V, Disp, WX, quote, legUSD, fmtNum, needs, viewOf, frame, renderWeather, fetchWeather };
+window.HD = { version: "0.2.4", state, A, S, V, Disp, WX, quote, legUSD, fmtNum, needs, viewOf, frame, renderWeather, fetchWeather };
 })();
 </script>
 </body>

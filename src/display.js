@@ -309,7 +309,8 @@ const Disp = {
       panel.style.paddingRight = '0';
       panel.style.paddingBottom = '0';
       panel.style.paddingLeft = '0';
-      panel.style.width = right ? '' : Math.round(device.getBoundingClientRect().width) + 'px';
+      /* Span the full window width (not the ticker width): clear the inline width so .wx-panel's width:100% fills the module. */
+      panel.style.width = '';
       panel.style.setProperty('--wx-base', parseFloat(getComputedStyle(device).fontSize) + 'px');
       panel.style.removeProperty('--wx-head-size');
       const head = panel.querySelector('.wx-head');
