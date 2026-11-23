@@ -2,6 +2,9 @@
 
 Newest first. Bump `VERSION` in `build.py` with every change.
 
+## 0.3.3 — 23 Nov 2026
+- Odometer ticker: made the outer bezel outline and the bezel background black (were a dark-grey gradient with a light-grey edge). The inner display frame is unchanged.
+
 ## 0.3.2 — 23 Nov 2026
 - Odometer weather: changed the muted grey chiclet text (day labels, low temps, precip/wind meta) to white. Icons and high/hourly temps keep the accent colour.
 
