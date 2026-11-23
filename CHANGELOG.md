@@ -2,6 +2,9 @@
 
 Newest first. Bump `VERSION` in `build.py` with every change.
 
+## 0.3.4 — 23 Nov 2026
+- 12-hour clocks now show an AM/PM suffix on the time itself (e.g. `4:11:01 AM`) instead of only tucking it in the corner (which could sit behind the playback controls); the corner now shows just the UTC offset. Added the needed glyphs so it renders on every theme: letters on the odometer wheel, A/M/P strokes for the nixie/neon/edge-lit themes, and a best-effort `M` for the 7-segment themes (which can't form a true M).
+
 ## 0.3.3 — 23 Nov 2026
 - Odometer ticker: made the outer bezel outline and the bezel background black (were a dark-grey gradient with a light-grey edge). The inner display frame is unchanged.
 

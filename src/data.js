@@ -475,9 +475,11 @@ function clockView(it) {
     let off = 'UTC';
     try { off = (dtf(it.tz, { timeZoneName: 'shortOffset' }).formatToParts(now).find(x => x.type === 'timeZoneName') || { value: 'UTC' }).value.replace('GMT', 'UTC'); } catch (e) { /* older browsers */ }
     const hour = it.h12 ? String(+p.hour) : p.hour;
+    /* 12-hour clocks carry an AM/PM suffix on the time itself (two characters) rather than only in the corner. */
+    const ap = it.h12 && p.dayPeriod ? ' ' + p.dayPeriod.toUpperCase().replace(/\./g, '') : '';
     const date = dtf(it.tz, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(now).replace(/,/g, '').toUpperCase();
-    return { label: (it.label || tzCity(it.tz)).toUpperCase(), right: off + (it.h12 && p.dayPeriod ? ' ' + p.dayPeriod.toUpperCase().replace(/\./g, '') : ''),
-      text: hour + ':' + p.minute + ':' + p.second, alt: hour + ':' + p.minute, info: [date] };
+    return { label: (it.label || tzCity(it.tz)).toUpperCase(), right: off,
+      text: hour + ':' + p.minute + ':' + p.second + ap, alt: hour + ':' + p.minute + ap, info: [date] };
   } catch (e) { return { label: String(it.tz).toUpperCase(), value: null, info: ['UNKNOWN TIME ZONE'] }; }
 }
 

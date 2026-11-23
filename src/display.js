@@ -2,7 +2,7 @@
 /* 7-segment: a top, b upper right, c lower right, d bottom, e lower left, f upper left, g middle */
 const SEG7 = { '0': 'abcdef', '1': 'bc', '2': 'abdeg', '3': 'abcdg', '4': 'bcfg', '5': 'acdfg', '6': 'acdefg', '7': 'abc', '8': 'abcdefg', '9': 'abcdfg',
   '-': 'g', '_': 'd', '=': 'dg', A: 'abcefg', B: 'cdefg', C: 'adef', D: 'bcdeg', E: 'adefg', F: 'aefg', G: 'acdef', H: 'bcefg', I: 'ef', J: 'bcde',
-  L: 'def', N: 'ceg', O: 'abcdef', P: 'abefg', R: 'eg', S: 'acdfg', T: 'defg', U: 'bcdef', Y: 'bcdfg', '$': 'acdfg' };
+  L: 'def', M: 'abf', N: 'ceg', O: 'abcdef', P: 'abefg', R: 'eg', S: 'acdfg', T: 'defg', U: 'bcdef', Y: 'bcdfg', '$': 'acdfg' };
 /* 14-segment, bit order: A B C D E F G1 G2 H J K L M N (H/K upper diagonals, L/N lower diagonals, J/M centre verticals) */
 const SEG14 = { '0': 0x0C3F, '1': 0x0406, '2': 0x00DB, '3': 0x008F, '4': 0x00E6, '5': 0x00ED, '6': 0x00FD, '7': 0x0007, '8': 0x00FF, '9': 0x00EF,
   A: 0x00F7, B: 0x128F, C: 0x0039, D: 0x120F, E: 0x00F9, F: 0x0071, G: 0x00BD, H: 0x00F6, I: 0x1209, J: 0x001E, K: 0x2470, L: 0x0038, M: 0x0536,
@@ -34,7 +34,10 @@ const STROKE = {
   '8': 'M30 47C19 47 13 39 13 29C13 18 20 10 30 10C40 10 47 18 47 29C47 39 41 47 30 47C17 47 10 56 10 68C10 81 18 90 30 90C42 90 50 81 50 68C50 56 43 47 30 47Z',
   '9': 'M15 86C19 89 23 90 28 90C43 90 50 72 50 45C50 22 43 10 30 10C18 10 10 20 10 34C10 48 18 57 30 57C41 57 49 48 50 38',
   '-': 'M14 50L46 50',
-  '$': 'M30 3V97M46 24C46 12 36 8 28 8C16 8 10 16 10 26C10 38 20 44 32 50C46 56 52 64 52 76C52 88 42 94 28 94C14 94 8 84 8 74'
+  '$': 'M30 3V97M46 24C46 12 36 8 28 8C16 8 10 16 10 26C10 38 20 44 32 50C46 56 52 64 52 76C52 88 42 94 28 94C14 94 8 84 8 74',
+  A: 'M12 90L30 10L48 90M19 62L41 62',
+  M: 'M10 90L10 10L30 50L50 10L50 90',
+  P: 'M16 90L16 10L37 10C49 10 49 44 37 44L16 44'
 };
 
 /* ================= themes ================= */
@@ -91,7 +94,7 @@ function dotHtml(sq) {
 const STROKE_WIRES = `<svg class="wires" viewBox="0 0 70 100">${'6935274180'.split('').map((d, i) => `<path d="${STROKE[d]}" transform="translate(${(i % 3 - 1) * .8} ${(i % 2) * .6})"/>`).join('')}</svg>`;
 const STROKE_LIT = '<svg class="lit" viewBox="0 0 70 100"><path class="g"/><path class="c"/>' +
   '<path class="g mk" data-k="dot" d="M63 89h.01"/><path class="g mk" data-k="tail" d="M63 89L60 98"/><path class="g mk" data-k="c1" d="M63 36h.01"/><path class="g mk" data-k="c2" d="M63 66h.01"/></svg>';
-const ODO = '0123456789 -$';
+const ODO = '0123456789 -$AMP';
 
 let AC = null, lastTick = 0;
 function tick() {
