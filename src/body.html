@@ -1,0 +1,127 @@
+<div id="stage">
+  <div id="board">
+    <section id="modTicker" class="mod" aria-label="Ticker">
+      <div id="device" class="device"></div>
+    </section>
+    <section id="modWeather" class="mod weather" aria-label="Weather">
+      <div id="wxPanel" class="wx-panel">
+        <div id="wxFit" class="wx-fit">
+          <header class="wx-head">
+            <span id="wxPlace">Weather</span>
+            <span id="wxStatus" class="wx-status"></span>
+          </header>
+          <div id="wxDays" class="wx-days" role="listbox" aria-label="Daily forecast"></div>
+          <div id="wxHours" class="wx-hours" role="list" aria-label="Hourly forecast"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div id="hud">
+  <button id="bPrev" title="Previous (left arrow)" aria-label="Previous">&#9664;</button>
+  <button id="bPause" title="Pause or resume (space)" aria-label="Pause or resume">&#10073;&#10073;</button>
+  <button id="bNext" title="Next (right arrow)" aria-label="Next">&#9654;</button>
+  <button id="bFull" title="Fullscreen (F)" aria-label="Fullscreen">&#9974;</button>
+  <button id="bGear" title="Settings (S)" aria-label="Settings">&#9881;</button>
+</div>
+
+<aside id="panel" aria-label="Settings">
+  <header><h1>HomeDashboard</h1><button class="btn x" id="pClose" title="Close settings" aria-label="Close settings">&#10005;</button></header>
+
+  <section>
+    <h2>Layout</h2>
+    <div class="chips" id="layoutRow" aria-label="Module layout">
+      <button type="button" class="chip" data-layout="below" aria-pressed="true">Weather under ticker</button>
+      <button type="button" class="chip" data-layout="right" aria-pressed="false">Weather to the right</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Weather</h2>
+    <div class="line" style="margin-top:0"><input id="wxLoc" type="text" placeholder="City or place, e.g. Los Angeles" aria-label="Weather location" autocomplete="off" spellcheck="false"></div>
+    <div class="line">
+      <label for="wxUnits">Units</label>
+      <select id="wxUnits" style="flex:1"><option value="f">Fahrenheit, mph</option><option value="c">Celsius, km/h</option></select>
+      <button class="btn pri" id="wxApply">Apply</button>
+    </div>
+    <div class="line"><label for="wxReturn">Return to Today after</label><input id="wxReturn" type="range" min="3" max="120" step="1"><output id="wxReturnOut"></output></div>
+    <div class="msg" id="wxMsg" role="status"></div>
+    <p>Forecast from <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a>. No API key required.</p>
+  </section>
+
+  <section>
+    <h2>Rotation</h2>
+    <button class="ms-btn" id="msBtn" aria-expanded="true" aria-controls="msPop"><span id="msSum"></span><span class="car">&#9662;</span></button>
+    <div class="ms-pop" id="msPop">
+      <div class="ms-tools">
+        <input id="msFilter" type="search" placeholder="Filter the list" aria-label="Filter the list">
+        <button class="btn sm" id="msAll">All</button><button class="btn sm" id="msNone">None</button>
+      </div>
+      <div id="msList"></div>
+    </div>
+    <div class="line"><label for="dwell">Seconds per item</label><input id="dwell" type="range" min="2" max="120" step="1"><output id="dwellOut"></output></div>
+  </section>
+
+  <section>
+    <h2>Add a price</h2>
+    <div class="pair">
+      <input id="apBase" type="text" list="dlAssets" placeholder="Asset, e.g. NVDA" aria-label="Asset" autocomplete="off" spellcheck="false">
+      <button class="btn x" id="apSwap" title="Swap the two" aria-label="Swap asset and denomination">&#8644;</button>
+      <input id="apQuote" type="text" list="dlAssets" placeholder="Priced in, e.g. USD" aria-label="Priced in" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="hint" id="apHint"></div>
+    <div class="chips" id="apSrc" aria-label="Sources"></div>
+    <div class="line">
+      <select id="apType" aria-label="Type for new symbols" style="flex:1">
+        <option value="auto">New symbols: detect type</option>
+        <option value="crypto">New symbols: crypto</option>
+        <option value="stock">New symbols: stock</option>
+      </select>
+      <button class="btn pri" id="apAdd">Add to rotation</button>
+    </div>
+    <div class="msg" id="apMsg" role="status"></div>
+  </section>
+
+  <section>
+    <h2>Add a clock</h2>
+    <div class="line" style="margin-top:0"><input id="acTz" type="text" list="dlTz" placeholder="Time zone, e.g. Asia/Tokyo" aria-label="Time zone" autocomplete="off" spellcheck="false"></div>
+    <div class="line"><input id="acLabel" type="text" placeholder="Label (optional)" aria-label="Clock label" maxlength="24"><button class="btn pri" id="acAdd">Add</button></div>
+    <label class="chk"><input id="acH12" type="checkbox">12-hour format</label>
+    <div class="msg" id="acMsg" role="status"></div>
+  </section>
+
+  <section>
+    <h2>Gold in bitcoin-sized units</h2>
+    <p>The entry <b>GOLD BTC-UNIT</b> splits all above-ground gold into as many units as there are bitcoins, so the two prices compare the way market caps do. Type <kbd>GOLDBTC</kbd> as an asset to price it in anything.</p>
+    <div class="line"><label for="gTonnes">Above-ground gold, tonnes</label><input id="gTonnes" type="text" inputmode="numeric" aria-label="Above-ground gold in tonnes" style="width:110px;flex:none;margin-left:auto"></div>
+    <div class="line"><label for="gUnits">Number of units</label><select id="gUnits" style="flex:1"><option value="issued">Bitcoins issued so far (live)</option><option value="cap">21 million (the cap)</option></select></div>
+    <p>Default tonnage is the World Gold Council estimate for end-2025.</p>
+  </section>
+
+  <section>
+    <h2>Theme</h2>
+    <div class="thgrid" id="thGrid"></div>
+    <div class="chips" id="acRow" aria-label="Colour"></div>
+    <div class="line"><label for="cells">Digits</label><input id="cells" type="range" min="6" max="14" step="1"><output id="cellsOut"></output></div>
+    <label class="chk"><input id="optInfo" type="checkbox">Show supporting information</label>
+    <label class="chk"><input id="optSound" type="checkbox">Flap sound (split-flap and flip-dot)</label>
+  </section>
+
+  <section>
+    <h2>Data sources</h2>
+    <p>Stock prices need a free key from <a href="https://finnhub.io/register" target="_blank" rel="noopener">finnhub.io</a>. It is stored only in this browser.</p>
+    <input id="fhKey" type="password" placeholder="Finnhub API key" aria-label="Finnhub API key" autocomplete="off" spellcheck="false">
+    <div id="srcList" style="margin-top:10px"></div>
+    <p>Rates by <a href="https://www.exchangerate-api.com" target="_blank" rel="noopener">Exchange Rate API</a>, ECB via Frankfurter, and the exchanges listed above. A cross price such as NVDA in gold is calculated from two US-dollar prices.</p>
+  </section>
+
+  <section>
+    <h2>Keys</h2>
+    <p><kbd>Space</kbd> pause &nbsp; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> previous / next &nbsp; <kbd>F</kbd> fullscreen &nbsp; <kbd>S</kbd> settings</p>
+    <div class="line"><button class="btn" id="bReset">Reset everything</button></div>
+    <p>HomeDashboard __VERSION__</p>
+  </section>
+</aside>
+<datalist id="dlAssets"></datalist>
+<datalist id="dlTz"></datalist>

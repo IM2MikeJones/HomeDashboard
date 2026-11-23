@@ -1,0 +1,2234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="generator" content="HomeDashboard 0.2.0">
+<title>HomeDashboard</title>
+<style>
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:#0b0c0e;color:#d9dde2;font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;overflow:hidden}
+button,input,select{font:inherit;color:inherit}
+
+/* ---------- stage / modules ---------- */
+#stage{position:fixed;left:0;top:0;bottom:0;right:0;overflow:hidden}
+#board{position:absolute;inset:0;display:flex;min-width:0;min-height:0;align-items:flex-start}
+#stage.layout-below #board{flex-direction:column;align-items:stretch;justify-content:flex-start}
+#stage.layout-right #board{flex-direction:row;align-items:flex-start;justify-content:flex-start}
+#modTicker{display:flex;align-items:flex-start;justify-content:center;min-width:0;min-height:0;overflow:hidden}
+#stage.layout-below #modTicker{flex:0 0 auto;padding:18px 22px 10px}
+#stage.layout-right #modTicker{flex:1 1 68%;width:0;align-self:flex-start;padding:18px 10px 18px 22px}
+#modWeather{display:flex;align-items:stretch;min-width:0;min-height:0;overflow:hidden;color:var(--wx-text,color-mix(in srgb,var(--on,#e8e8e8) 88%,#fff));font-family:var(--wx-font,inherit)}
+#stage.layout-below #modWeather{flex:1 1 auto;min-height:0;padding:0 22px 20px;justify-content:center;align-items:flex-start}
+#stage.layout-right #modWeather{flex:0 0 32%;width:32%;align-self:stretch;padding:18px 22px 18px 10px}
+.device{font-size:100px;display:inline-flex;flex-direction:column;align-items:center;position:relative;white-space:nowrap;line-height:1;user-select:none}
+
+/* ---------- weather module (token-driven; --wx-* set per .t-* in themes.css) ---------- */
+/* Panel is a fixed box; .wx-fit is measured and uniformly scaled to fit (like the ticker). Never scrolls. */
+.wx-panel{position:relative;width:100%;min-width:0;min-height:0;overflow:hidden;
+  padding:14px 16px 16px;border-radius:var(--wx-panel-radius,10px);
+  background:var(--wx-panel-bg,linear-gradient(#27282c,#17181a));
+  box-shadow:var(--wx-panel-shadow,0 12px 28px rgba(0,0,0,.55));color:var(--wx-text,#e8e8e8)}
+#stage.layout-below .wx-panel{align-self:flex-start}
+#stage.layout-right .wx-panel{align-self:stretch;height:100%}
+.wx-panel::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:2;
+  background:var(--wx-overlay,none);opacity:var(--wx-overlay-opacity,0);animation:var(--wx-overlay-anim,none)}
+.wx-fit{position:relative;z-index:1;width:100%;transform-origin:top left;will-change:transform}
+.wx-head{display:flex;justify-content:space-between;align-items:baseline;gap:calc(var(--wx-base,60px)*.18);margin-bottom:calc(var(--wx-base,60px)*.26);
+  font-size:var(--wx-head-size,calc(var(--wx-base,60px)*.3));letter-spacing:.04em;text-transform:uppercase;font-weight:var(--wx-weight,650);white-space:nowrap;
+  text-shadow:var(--wx-head-shadow,none)}
+.t-nixie .wx-head,.t-numi .wx-head,.t-edge .wx-head{padding:.1em .26em;border-radius:.1em;background:var(--wx-plaque);color:var(--wx-plaque-color);text-shadow:none}
+.t-nixie .wx-head .wx-status,.t-numi .wx-head .wx-status,.t-edge .wx-head .wx-status{color:inherit;opacity:.75}
+.wx-status{color:var(--wx-muted,inherit);font-size:.6em;letter-spacing:.04em;text-transform:none;font-weight:500;text-shadow:none}
+/* Bezel-less weather (odometer): drop the header so chiclets float right up under the ticker. */
+#stage.t-odo .wx-head{display:none}
+#stage.t-odo.layout-below #modTicker{padding-bottom:6px}
+/* Day and hour chiclets butt directly together: no gap between the two rows, and the touching
+   edges are squared off (day cards round only on top, hour cards round only on the bottom). */
+#stage.t-odo .wx-days{padding-bottom:0}
+#stage.t-odo .wx-hours{margin-top:0}
+#stage.t-odo .wx-day{border-radius:var(--wx-card-radius,12px) var(--wx-card-radius,12px) 0 0}
+#stage.t-odo .wx-hour{border-radius:0 0 var(--wx-card-radius,12px) var(--wx-card-radius,12px)}
+/* Chiclet content enlarged 30% on odometer. */
+#stage.t-odo .wx-day .lab,#stage.t-odo .wx-hour .lab{font-size:14.3px}
+#stage.t-odo .wx-day .ico,#stage.t-odo .wx-hour .ico{width:36.4px;height:36.4px}
+#stage.t-odo .wx-day .hi{font-size:23.4px}
+#stage.t-odo .wx-day .lo{font-size:18.2px}
+#stage.t-odo .wx-day .meta,#stage.t-odo .wx-hour .meta{font-size:14.3px}
+#stage.t-odo .wx-hour .temp{font-size:20.8px}
+.wx-days,.wx-hours{display:flex;gap:8px;overflow:visible;padding-bottom:4px;width:100%}
+.wx-hours{margin-top:calc(var(--wx-base,60px)*.26)}
+#stage.layout-right .wx-days,#stage.layout-right .wx-hours{flex-flow:row wrap;justify-content:center}
+.wx-day,.wx-hour{flex:1 1 0;min-width:0;padding:10px 10px 11px;border:var(--wx-card-border,1px solid rgba(255,255,255,.2));
+  border-radius:var(--wx-card-radius,8px);background:var(--wx-card-bg,rgba(255,255,255,.07));cursor:pointer;text-align:center;color:var(--wx-card-color,inherit)}
+#stage.layout-right .wx-day,#stage.layout-right .wx-hour{flex:1 1 90px}
+.wx-day:hover,.wx-hour:hover{filter:brightness(1.08)}
+.wx-day[aria-selected=true]{background:var(--wx-card-lit-bg,var(--wx-card-bg));box-shadow:var(--wx-card-lit-shadow,none);border-color:transparent}
+.wx-day[aria-selected=true] .ico,.wx-day[aria-selected=true] .hi{filter:var(--wx-glow,none)}
+.wx-day .lab,.wx-hour .lab{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--wx-card-muted,var(--wx-muted,inherit));margin-bottom:6px;font-weight:var(--wx-weight,650)}
+.wx-day .ico,.wx-hour .ico{display:block;width:28px;height:28px;margin:0 auto 6px;color:inherit}
+.wx-day .ico svg,.wx-hour .ico svg{width:100%;height:100%;display:block}
+.wx-day .temps{display:flex;justify-content:center;align-items:baseline;gap:7px;font-variant-numeric:tabular-nums}
+.wx-day .hi{font-size:18px;font-weight:var(--wx-weight,750)}
+.wx-day .lo{font-size:14px;color:var(--wx-card-muted,var(--wx-muted,inherit));font-weight:600}
+.wx-day .meta,.wx-hour .meta{display:block;margin-top:6px;font-size:11px;line-height:1.35;color:var(--wx-card-muted,var(--wx-muted,inherit))}
+.wx-hour .temp{display:block;font-size:16px;font-weight:var(--wx-weight,750);font-variant-numeric:tabular-nums}
+.wx-empty{padding:18px 8px;font-size:13px;color:var(--wx-muted,inherit);letter-spacing:.04em}
+.row{display:flex;justify-content:center;align-items:flex-end}
+.row.label{font-size:.42em}
+.row.info{font-size:.3em}
+.cell{flex:none;position:relative;display:block}
+.pl-top,.pl-bot{align-self:stretch;width:0;min-width:100%}
+.prow{display:flex;justify-content:space-between;gap:2em;font-size:.125em;line-height:1.2;letter-spacing:.14em;font-weight:600;text-transform:uppercase;white-space:nowrap;overflow:hidden;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+.prow.pinfo{justify-content:center;gap:2.4em}
+.prow span{overflow:hidden;text-overflow:ellipsis}
+.pinfo span{flex:none}
+.pinfo .up{color:#3fd273}
+.pinfo .dn{color:#ff6152}
+
+/* ---------- heads-up controls ---------- */
+#hud{position:fixed;right:14px;top:12px;display:flex;gap:6px;z-index:20;transition:opacity .4s}
+body.idle:not(.open) #hud{opacity:0}
+body.idle:not(.open){cursor:none}
+#hud button{width:38px;height:38px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(20,22,26,.72);color:#e6e9ee;font-size:17px;line-height:1;cursor:pointer;
+  backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:0}
+#hud button:hover{background:rgba(48,52,60,.9)}
+#hud button:focus-visible,#panel button:focus-visible,#panel input:focus-visible,#panel select:focus-visible{outline:2px solid #e8a33d;outline-offset:2px}
+body.open #hud{right:calc(min(400px,100vw) + 14px)}
+@media (max-width:760px){body.open #hud{display:none}}
+
+/* ---------- settings panel ---------- */
+#panel{position:fixed;top:0;right:0;bottom:0;width:min(400px,100vw);background:#14161a;border-left:1px solid #2a2e35;z-index:30;overflow-y:auto;
+  transform:translateX(102%);transition:transform .25s ease;padding:0 18px 28px;scrollbar-width:thin;scrollbar-color:#3a3f48 transparent}
+body.open #panel{transform:none}
+#panel header{display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#14161a;padding:14px 0 10px;z-index:3;border-bottom:1px solid #23262c}
+#panel h1{font-size:16px;margin:0;font-weight:650;letter-spacing:.01em}
+#panel h2{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#8f97a3;margin:22px 0 9px;font-weight:650}
+#panel section{border-bottom:1px solid #1f2227;padding-bottom:16px}
+#panel section:last-child{border-bottom:0}
+#panel p{margin:6px 0;color:#9aa2ad;font-size:12.5px}
+#panel a{color:#e8a33d}
+#panel input[type=text],#panel input[type=search],#panel input[type=password],#panel select{width:100%;background:#0e1013;border:1px solid #2c3038;border-radius:8px;padding:8px 10px;color:#e6e9ee;min-width:0}
+#panel input::placeholder{color:#6d7480}
+.btn{background:#22262d;border:1px solid #343944;border-radius:8px;padding:8px 12px;cursor:pointer;color:#e6e9ee;white-space:nowrap}
+.btn:hover{background:#2c313a}
+.btn.pri{background:#e8a33d;border-color:#e8a33d;color:#1a1305;font-weight:650}
+.btn.pri:hover{background:#f2b354}
+.btn.sm{padding:4px 8px;font-size:12px;border-radius:6px}
+.btn.x{width:34px;height:34px;padding:0;font-size:15px}
+.line{display:flex;gap:8px;align-items:center;margin-top:8px}
+.line>label{flex:none;color:#b3bac4;font-size:13px}
+.line input[type=range]{flex:1;accent-color:#e8a33d;min-width:0}
+.line output{width:44px;text-align:right;font-variant-numeric:tabular-nums;color:#e6e9ee}
+.chk{display:flex;gap:8px;align-items:center;margin-top:9px;color:#c8ced7;cursor:pointer;font-size:13px}
+.chk input{accent-color:#e8a33d;width:16px;height:16px;margin:0}
+.msg{font-size:12.5px;min-height:18px;margin-top:6px;color:#9aa2ad}
+.msg.err{color:#ff7a6b}.msg.ok{color:#5fd38a}
+.hint{font-size:12.5px;color:#9aa2ad;margin-top:7px;min-height:18px}
+
+/* multi-select rotation dropdown */
+.ms-btn{width:100%;display:flex;justify-content:space-between;align-items:center;background:#0e1013;border:1px solid #2c3038;border-radius:8px;padding:9px 11px;cursor:pointer;color:#e6e9ee;text-align:left}
+.ms-btn .car{color:#8f97a3;transition:transform .2s}
+.ms-btn[aria-expanded=true] .car{transform:rotate(180deg)}
+.ms-pop{border:1px solid #2c3038;border-radius:8px;margin-top:6px;background:#0e1013;overflow:hidden}
+.ms-tools{display:flex;gap:6px;padding:8px;border-bottom:1px solid #23262c}
+.ms-tools input{flex:1}
+#msList{max-height:330px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#3a3f48 transparent}
+.it{display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid #191c20}
+.it:last-child{border-bottom:0}
+.it:hover{background:#15181c}
+.it>label{flex:1;display:flex;gap:9px;align-items:center;min-width:0;cursor:pointer}
+.it input{accent-color:#e8a33d;width:16px;height:16px;flex:none;margin:0}
+.it .tx{min-width:0;display:flex;flex-direction:column}
+.it .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#e6e9ee}
+.it .sb{font-size:11.5px;color:#808894;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.it .tg{font-size:10px;letter-spacing:.08em;text-transform:uppercase;border-radius:4px;padding:1px 5px;flex:none;background:#23272e;color:#9aa2ad}
+.it .tg.price{background:#2b2413;color:#e8a33d}.it .tg.clock{background:#14263a;color:#7db8f0}.it .tg.vital{background:#2d1d10;color:#f7931a}
+.it .ops{display:flex;gap:2px;flex:none}
+.it .ops button{width:24px;height:24px;border:0;background:transparent;color:#8f97a3;border-radius:5px;cursor:pointer;padding:0;font-size:12px}
+.it .ops button:hover{background:#262a31;color:#fff}
+.it.cur{box-shadow:inset 3px 0 0 #e8a33d}
+
+.pair{display:grid;grid-template-columns:1fr 34px 1fr;gap:6px;align-items:center}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.chip{border:1px solid #343944;background:#1a1d22;border-radius:999px;padding:4px 10px;font-size:12px;cursor:pointer;color:#c8ced7}
+.chip:hover{border-color:#525968}
+.chip[aria-pressed=true]{background:#e8a33d;border-color:#e8a33d;color:#1a1305;font-weight:650}
+.chip i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:-1px;border:1px solid rgba(255,255,255,.3)}
+.thgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.thgrid button{border:1px solid #2c3038;background:#0e1013;border-radius:8px;padding:8px 10px;cursor:pointer;text-align:left;color:#c8ced7;font-size:13px}
+.thgrid button:hover{border-color:#525968}
+.thgrid button[aria-pressed=true]{border-color:#e8a33d;color:#fff;box-shadow:inset 0 0 0 1px #e8a33d}
+.src{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12.5px}
+.src .dot{width:8px;height:8px;border-radius:50%;background:#4a505a;flex:none}
+.src .dot.ok{background:#3fd273}.src .dot.err{background:#ff6152}.src .dot.wait{background:#e8a33d}
+.src .n{flex:none;color:#d9dde2}
+.src .n a{color:inherit;text-decoration:none}.src .n a:hover{text-decoration:underline}
+.src .s{color:#808894;margin-left:auto;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+kbd{background:#22262d;border:1px solid #343944;border-radius:4px;padding:0 5px;font:12px ui-monospace,Menlo,Consolas,monospace}
+
+/* ---------- shared cell engines ---------- */
+.cell.seg{width:.6em;height:1em}
+.cell.seg svg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible}
+.seg .s{fill:var(--seg-off,rgba(255,255,255,.06))}
+.seg .s.l{fill:none;stroke:var(--seg-off,rgba(255,255,255,.06));stroke-width:5;stroke-linecap:round}
+.seg .lit .s{fill:var(--on);opacity:0}
+.seg .lit .s.l{fill:none;stroke:var(--on)}
+.seg .lit .s.on{opacity:1}
+
+.cell.dot{width:.714em;height:1em;margin:0 .0715em;background:radial-gradient(circle,var(--dot-off,#161616) 0 37%,transparent 41%) 0 0/20% 14.2857%}
+.cell.dot svg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible}
+.dot .d{fill:var(--on);opacity:0}
+.dot .d.on{opacity:1}
+
+.cell.st{width:.7em;height:1em}
+.st .glass{position:absolute;inset:0;display:block}
+.st svg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible}
+.st path{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.st .mesh,.st .shine,.st .base{display:none}
+
+.cell.flip{width:.68em;height:1em;perspective:4em;color:var(--on);font-family:"Helvetica Neue",Helvetica,Arial,"Liberation Sans","Nimbus Sans","DejaVu Sans Condensed",sans-serif;font-weight:700;box-shadow:0 .02em .05em rgba(0,0,0,.6)}
+.flip .h{position:absolute;left:0;right:0;height:50%;overflow:hidden;display:block}
+.flip .h i{position:absolute;left:0;right:0;height:200%;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:.72em;line-height:1}
+.flip .top,.flip .ftop{top:0;border-radius:.06em .06em 0 0;background:linear-gradient(#2d2e33,#222327);transform-origin:50% 100%}
+.flip .top i,.flip .ftop i{top:0}
+.flip .bot,.flip .fbot{bottom:0;border-radius:0 0 .06em .06em;background:linear-gradient(#1a1b1e,#25262a);transform-origin:50% 0}
+.flip .bot i,.flip .fbot i{bottom:0}
+.flip .ftop,.flip .fbot{visibility:hidden;z-index:2;backface-visibility:hidden}
+.cell.flip::after{content:"";position:absolute;left:0;right:0;top:calc(50% - .009em);height:.018em;background:#070708;z-index:3}
+.cell.flip::before{content:"";position:absolute;left:-.014em;right:-.014em;top:43%;height:14%;border-left:.03em solid #0b0b0c;border-right:.03em solid #0b0b0c;z-index:4;pointer-events:none}
+
+.cell.odo{width:.62em;height:1em;overflow:hidden;background:#171717;color:var(--on);font-family:"DIN Alternate","Helvetica Neue",Helvetica,Arial,sans-serif;font-weight:700}
+.odo .strip{position:absolute;left:0;right:0;top:0;display:block;transition:transform .75s cubic-bezier(.25,1.2,.5,1)}
+.odo .strip b{display:flex;height:1em;align-items:center;justify-content:center}
+.odo .strip i{font-style:normal;font-size:.74em;line-height:1}
+.cell.odo::after{content:"";position:absolute;inset:0;background:linear-gradient(rgba(0,0,0,.88),rgba(0,0,0,0) 28%,rgba(255,255,255,.07) 50%,rgba(0,0,0,0) 72%,rgba(0,0,0,.88));pointer-events:none}
+.odo .mk{position:absolute;right:.01em;bottom:.03em;font-size:.42em;text-decoration:none;z-index:2;line-height:1}
+.odo .mk.col{bottom:30%}
+
+.cell.ek{width:.8em;height:1.12em;background:var(--on);color:#141414;border-radius:.012em;overflow:hidden;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif}
+.ek .ch{position:absolute;left:0;right:8%;top:17%;bottom:0;display:flex;align-items:center;justify-content:center;font-size:.86em;font-weight:800;line-height:1;letter-spacing:-.03em}
+.ek .cap{position:absolute;left:0;right:0;top:3.5%;height:14%;padding:0 4%;display:flex;align-items:center;justify-content:center;text-align:center;font-size:.064em;line-height:1.08;font-weight:700;font-style:normal;letter-spacing:.01em;white-space:normal;overflow:hidden}
+.ek .mk{position:absolute;right:3%;bottom:5%;font-size:.4em;font-weight:800;text-decoration:none;line-height:1}
+.ek.tag .ch{top:0;right:0;font-size:.165em;flex-direction:column;gap:.3em;letter-spacing:.02em;text-align:center;white-space:normal}
+.ek.tag hr{width:68%;border:0;border-top:.14em solid currentColor;margin:0}
+
+/* ---------- split-flap ---------- */
+.t-flip{background:#000}
+.t-flip .device{padding:.32em .4em .34em;background:linear-gradient(#27282c,#17181a);border-radius:.07em;box-shadow:0 .3em .7em rgba(0,0,0,.55),inset 0 0 0 .012em #3b3c41,inset 0 .03em .03em rgba(255,255,255,.07)}
+.t-flip .row{gap:.05em}
+.t-flip .row.label{margin-bottom:.5em}
+.t-flip .row.info{margin-top:.62em}
+
+/* ---------- Nixie ---------- */
+.t-nixie{background:radial-gradient(90% 70% at 50% 55%,#2e1b0f,#0a0604 76%)}
+.t-nixie .row.main{padding:0 .34em;gap:.05em}
+.t-nixie .cell.st{width:.74em;height:1.36em}
+.t-nixie .st .glass{inset:0 0 .2em 0;border-radius:.37em .37em .1em .1em/.34em .34em .08em .08em;overflow:hidden;
+  background:linear-gradient(90deg,rgba(255,255,255,.14),rgba(255,255,255,.02) 16%,rgba(0,0,0,.14) 50%,rgba(255,255,255,.02) 84%,rgba(255,255,255,.1)),rgba(28,19,14,.6);
+  box-shadow:inset 0 0 0 .008em rgba(255,255,255,.18),inset 0 .08em .1em rgba(255,255,255,.1),0 .05em .2em rgba(0,0,0,.6)}
+.t-nixie .st.lit-on .glass{box-shadow:inset 0 0 0 .008em rgba(255,255,255,.18),inset 0 .08em .1em rgba(255,255,255,.1),inset 0 0 .3em color-mix(in srgb,var(--on) 28%,transparent),0 0 .45em color-mix(in srgb,var(--on) 22%,transparent)}
+.t-nixie .st svg{left:15%;top:14%;width:74%;height:70%}
+.t-nixie .wires path{stroke:rgba(170,135,110,.2);stroke-width:1.3}
+.t-nixie .st .mesh{display:block;position:absolute;inset:9% 9% 11% 9%;border-radius:.2em;opacity:.55;
+  background:repeating-linear-gradient(60deg,rgba(0,0,0,.42) 0 .006em,transparent .006em .034em),repeating-linear-gradient(-60deg,rgba(0,0,0,.42) 0 .006em,transparent .006em .034em)}
+.t-nixie .lit{filter:drop-shadow(0 0 .03em var(--on)) drop-shadow(0 0 .1em var(--on))}
+.t-nixie .lit .g{stroke:var(--on);stroke-width:5}
+.t-nixie .lit .c{stroke:#ffe4bd;stroke-width:1.8}
+.t-nixie .st .shine{display:block;position:absolute;left:11%;top:7%;width:9%;height:60%;border-radius:50%;background:linear-gradient(rgba(255,255,255,.5),rgba(255,255,255,0));filter:blur(.012em)}
+.t-nixie .st .base{display:block;position:absolute;left:6%;right:6%;bottom:0;height:.215em;background:linear-gradient(90deg,#0c0c0c,#3d3d3d 28%,#1d1d1d 68%,#090909);border-radius:.02em .02em 0 0}
+.t-nixie .pl-bot{background:linear-gradient(#6d4727,#4b2f17 42%,#33200f);border-radius:.05em;padding:.14em .32em .17em;box-shadow:0 .22em .5em rgba(0,0,0,.6),inset 0 .02em 0 rgba(255,255,255,.16);display:flex;flex-direction:column;gap:.07em}
+.t-nixie .prow{background:linear-gradient(#e2c988,#b6934a 55%,#d3b46c);color:#38270f;border-radius:.12em;padding:.42em 1em;box-shadow:inset 0 0 0 .07em rgba(80,55,20,.45),0 .12em .25em rgba(0,0,0,.4);text-shadow:0 .06em 0 rgba(255,240,200,.45)}
+.t-nixie .pinfo .up{color:#1f6b34}.t-nixie .pinfo .dn{color:#9c2114}
+
+/* ---------- Blockclock style (e-paper) ---------- */
+.t-eink{background:radial-gradient(120% 90% at 50% 30%,#dcd9cf,#a5a298)}
+.t-eink .device{background:linear-gradient(#1c1d1f,#0d0e0f);padding:.17em .2em .2em;border-radius:.07em;box-shadow:0 .25em .5em rgba(0,0,0,.45),inset 0 .015em 0 rgba(255,255,255,.14)}
+.t-eink .row.main{gap:.07em}
+.t-eink.a-1{background:radial-gradient(120% 90% at 50% 30%,#3a3c40,#131416)}
+.t-eink.a-1 .cell.ek{color:#e9e7de}
+
+/* ---------- 7-segment LED ---------- */
+.t-led{background:#000;--seg-off:color-mix(in srgb,var(--on) 9%,#0d0d0d)}
+.t-led .device{padding:.1em .3em .12em;background:linear-gradient(#19191b,#0b0b0c);border-radius:.08em;box-shadow:0 .3em .6em rgba(0,0,0,.7),inset 0 0 0 .012em #2e2e33}
+.t-led .row.main{padding:.17em .26em;background:color-mix(in srgb,var(--on) 5%,#050505);border-radius:.04em;box-shadow:inset 0 0 .16em #000;gap:.07em}
+.t-led .seg svg{transform:skewX(-7deg)}
+.t-led .seg .lit{filter:drop-shadow(0 0 .03em var(--on)) drop-shadow(0 0 .11em color-mix(in srgb,var(--on) 60%,transparent))}
+.t-led .prow{color:#b7bbc2;padding:.75em .5em}
+
+/* ---------- vacuum fluorescent ---------- */
+.t-vfd{background:#000;--seg-off:color-mix(in srgb,var(--on) 7%,#0a0d0f)}
+.t-vfd .device{padding:.3em .42em;background:linear-gradient(#0b1014,#05080a);border-radius:.06em;box-shadow:0 .3em .6em rgba(0,0,0,.7),inset 0 0 0 .012em #27333d,inset 0 0 .6em rgba(0,0,0,.8)}
+.t-vfd .device::after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.3) 0 .01em,transparent .01em .036em),repeating-linear-gradient(90deg,rgba(0,0,0,.22) 0 .01em,transparent .01em .036em)}
+.t-vfd .row{gap:.08em}
+.t-vfd .row.label{margin-bottom:.5em}
+.t-vfd .row.info{margin-top:.55em}
+.t-vfd .seg .s.l{stroke-width:5.6;stroke-linecap:butt}
+.t-vfd .seg .lit{filter:drop-shadow(0 0 .025em var(--on)) drop-shadow(0 0 .09em color-mix(in srgb,var(--on) 55%,transparent))}
+
+/* ---------- dot-matrix LED ---------- */
+.t-dots{background:#000;--dot-off:color-mix(in srgb,var(--on) 13%,#101010)}
+.t-dots .device{padding:.3em .34em;background:#090909;border-radius:.05em;box-shadow:0 .3em .6em rgba(0,0,0,.7),inset 0 0 0 .014em #272727}
+.t-dots .row.label{margin-bottom:.55em}
+.t-dots .row.info{margin-top:.55em}
+.t-dots .dot .lit{filter:drop-shadow(0 0 .028em var(--on)) drop-shadow(0 0 .08em color-mix(in srgb,var(--on) 50%,transparent))}
+
+/* ---------- calculator LCD ---------- */
+.t-lcd{background:#000;--seg-off:rgba(20,30,15,.075)}
+.t-lcd .device{padding:.26em .32em .28em;background:linear-gradient(#3b3e43,#25272b);border-radius:.1em;box-shadow:0 .3em .6em rgba(0,0,0,.5),inset 0 .02em 0 rgba(255,255,255,.2)}
+.t-lcd .pl-top,.t-lcd .row.main,.t-lcd .pl-bot{background:var(--on)}
+.t-lcd .pl-top{border-radius:.05em .05em 0 0;padding:.1em .22em 0}
+.t-lcd .row.main{align-self:stretch;padding:.09em .24em .07em;gap:.08em}
+.t-lcd .pl-bot{border-radius:0 0 .05em .05em;padding:0 .22em .1em;min-height:.1em}
+.t-lcd .seg svg{transform:skewX(-6deg)}
+.t-lcd .seg .lit .s{fill:#1a1f17}
+.t-lcd .seg .lit{filter:drop-shadow(.014em .018em 0 rgba(0,0,0,.2))}
+.t-lcd .prow{color:#1a1f17;font-weight:700}
+.t-lcd .pinfo .up,.t-lcd .pinfo .dn{color:#1a1f17}
+
+/* ---------- flip-dot ---------- */
+.t-flipdot{background:#000}
+.t-flipdot .device{padding:.3em .34em;background:#0c0c0c;border:.035em solid #9c9fa3;border-radius:.03em;box-shadow:0 .3em .6em rgba(0,0,0,.6)}
+.t-flipdot .row.label{margin-bottom:.55em}
+.t-flipdot .row.info{margin-top:.55em}
+.t-flipdot .cell.dot{background:radial-gradient(circle,#040404 0 44%,transparent 48%) 0 0/20% 14.2857%}
+.t-flipdot .dot .d{opacity:1;fill:#1b1b1b;stroke:#1b1b1b;stroke-width:1;transition:fill 0s linear,stroke 0s linear;transform-box:fill-box;transform-origin:center}
+.t-flipdot .dot .d.on{fill:var(--on);stroke:var(--on)}
+.t-flipdot .dot .d.fa{animation:fdA .16s linear both}
+.t-flipdot .dot .d.fb{animation:fdB .16s linear both}
+@keyframes fdA{0%{transform:scaleX(1)}50%{transform:scaleX(.08)}100%{transform:scaleX(1)}}
+@keyframes fdB{0%{transform:scaleX(1)}50%{transform:scaleX(.08)}100%{transform:scaleX(1)}}
+
+/* ---------- CRT terminal ---------- */
+.t-crt{background:#000}
+.t-crt .device{padding:.44em .52em;background:radial-gradient(120% 120% at 50% 50%,#0b130e,#020403 80%);border-radius:.22em/.3em;
+  box-shadow:0 0 0 .1em #cbc5b2,0 0 0 .13em #8f8977,0 .45em .8em rgba(0,0,0,.6),inset 0 0 .5em rgba(0,0,0,.9)}
+.t-crt .device::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;animation:crtf 3.7s steps(40) infinite;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.34) 0 .016em,transparent .016em .034em),radial-gradient(120% 90% at 50% 50%,transparent 58%,rgba(0,0,0,.6))}
+@keyframes crtf{0%,100%{opacity:1}48%{opacity:.9}52%{opacity:.97}}
+.t-crt .cell.dot{background:none}
+.t-crt .row.label{margin-bottom:.6em}
+.t-crt .row.info{margin-top:.6em}
+.t-crt .dot .lit{filter:drop-shadow(0 0 .02em var(--on)) drop-shadow(0 0 .1em color-mix(in srgb,var(--on) 55%,transparent))}
+
+/* ---------- odometer ---------- */
+.t-odo{background:#000}
+.t-odo .device{padding:0 .3em;background:linear-gradient(#1b1c1e,#0c0d0e);border-radius:.12em;box-shadow:0 .3em .6em rgba(0,0,0,.6),inset 0 0 0 .016em #55585d}
+.t-odo .row.main{padding:.07em .08em;background:#000;border-radius:.05em;box-shadow:0 0 0 .025em #c1c5c9,0 0 0 .04em #6d7175,inset 0 0 .1em #000;gap:.022em}
+.t-odo .prow{color:#d4d7da;padding:.8em .3em}
+.t-odo .plabel{padding-top:.48em}
+.t-odo .pinfo{padding-bottom:.48em}
+
+/* ---------- scoreboard bulbs ---------- */
+.t-bulbs{background:#000}
+.t-bulbs .device{padding:.3em .36em;background:linear-gradient(#101c15,#0a120e);border-radius:.04em;box-shadow:0 .3em .6em rgba(0,0,0,.7),inset 0 0 0 .03em #263b2e}
+.t-bulbs .row.label{margin-bottom:.55em}
+.t-bulbs .row.info{margin-top:.55em}
+.t-bulbs .cell.dot{background:radial-gradient(circle,#2b2b23 0 28%,#12120e 32% 44%,transparent 48%) 0 0/20% 14.2857%}
+.t-bulbs .dot .d{fill:#fffbea;stroke:var(--on);stroke-width:1.7}
+.t-bulbs .dot .lit{filter:drop-shadow(0 0 .035em var(--on)) drop-shadow(0 0 .1em var(--on))}
+
+/* ---------- neon ---------- */
+.t-neon{background-color:#241512;
+  background-image:radial-gradient(90% 70% at 50% 50%,rgba(10,6,14,.62),rgba(6,4,9,.93)),linear-gradient(335deg,#170d0b 23px,transparent 23px),linear-gradient(155deg,#2c1a16 23px,transparent 23px),linear-gradient(335deg,#170d0b 23px,transparent 23px),linear-gradient(155deg,#2c1a16 23px,transparent 23px);
+  background-size:100% 100%,58px 58px,58px 58px,58px 58px,58px 58px;background-position:0 0,0 2px,4px 35px,29px 31px,34px 6px}
+.t-neon .device{padding:.2em .4em}
+.t-neon .row.main{gap:.04em}
+.t-neon .lit{filter:drop-shadow(0 0 .03em var(--on)) drop-shadow(0 0 .12em var(--on)) drop-shadow(0 0 .32em color-mix(in srgb,var(--on) 55%,transparent))}
+.t-neon .lit .g{stroke:var(--on);stroke-width:6.5}
+.t-neon .lit .c{stroke:#fff;stroke-width:2.6;opacity:.92}
+.t-neon .row.main .cell:nth-child(4n+2) .lit{animation:neonf 9s infinite}
+@keyframes neonf{0%,91%,95%,100%{opacity:1}93%{opacity:.5}}
+.t-neon .prow{color:#fff;font-weight:500;font-size:.14em;padding:1em .4em;text-shadow:0 0 .3em var(--on),0 0 .9em var(--on)}
+.t-neon .pinfo .up,.t-neon .pinfo .dn{color:#fff}
+
+/* ---------- Numitron ---------- */
+.t-numi{background:radial-gradient(100% 80% at 50% 45%,#2c2520,#0b0908 76%);--seg-off:rgba(210,195,180,.14)}
+.t-numi .row.main{gap:.07em;padding:0 .3em}
+.t-numi .cell.seg{width:.68em;height:1.2em;border-radius:.3em .3em .08em .08em/.26em .26em .06em .06em;
+  background:linear-gradient(90deg,rgba(255,255,255,.13),rgba(255,255,255,.02) 18%,rgba(0,0,0,.16) 50%,rgba(255,255,255,.02) 82%,rgba(255,255,255,.1)),rgba(42,37,34,.62);
+  box-shadow:inset 0 0 0 .008em rgba(255,255,255,.2),inset 0 .08em .1em rgba(255,255,255,.09)}
+.t-numi .seg svg{left:17%;top:15%;width:66%;height:70%}
+.t-numi .seg .s.l{stroke-width:2.3}
+.t-numi .seg .ghost circle{fill:none}
+.t-numi .seg .lit .s.l{stroke:#fff6e4}
+.t-numi .seg .lit{filter:drop-shadow(0 0 .02em var(--on)) drop-shadow(0 0 .07em #ff9a3d)}
+.t-numi .pl-bot{background:linear-gradient(#d2d5d8,#9da1a5);border-radius:.04em;padding:.13em .3em .15em;box-shadow:0 .22em .5em rgba(0,0,0,.6),inset 0 .02em 0 rgba(255,255,255,.6);display:flex;flex-direction:column;gap:.03em}
+.t-numi .prow{color:#1c1e20;padding:.35em .6em}
+.t-numi .pinfo .up{color:#0b6f30}.t-numi .pinfo .dn{color:#a82216}
+
+/* ---------- edge-lit acrylic ---------- */
+.t-edge{background:radial-gradient(100% 80% at 50% 50%,#111620,#03040a 76%)}
+.t-edge .row.main{gap:.05em;padding:0 .3em}
+.t-edge .cell.st{width:.74em;height:1.14em}
+.t-edge .st .glass{inset:0 0 .06em 0;border-radius:.03em;background:linear-gradient(100deg,rgba(255,255,255,.075),rgba(255,255,255,.015) 30%,rgba(255,255,255,.04) 70%,rgba(255,255,255,.085));
+  box-shadow:inset 0 0 0 .006em rgba(255,255,255,.2),inset 0 -.13em .15em -.06em var(--on)}
+.t-edge .st svg{left:12%;top:7%;width:76%;height:86%}
+.t-edge .wires path{stroke:rgba(255,255,255,.075);stroke-width:2.2;stroke-dasharray:.1 4.6}
+.t-edge .lit .g{stroke:var(--on);stroke-width:3.5;stroke-dasharray:.1 4.6}
+.t-edge .lit .c{stroke:#fff;stroke-width:1.3;stroke-dasharray:.1 4.6;opacity:.9}
+.t-edge .lit{filter:drop-shadow(0 0 .03em var(--on)) drop-shadow(0 0 .1em var(--on))}
+.t-edge .pl-bot{background:linear-gradient(#1c1e24,#0b0c0f);padding:.14em .3em .16em;border-radius:.04em;box-shadow:0 .22em .5em rgba(0,0,0,.6),inset 0 .025em 0 var(--on);display:flex;flex-direction:column;gap:.02em}
+.t-edge .prow{color:#cdd5e3;padding:.35em .5em}
+
+/* ---------- weather tokens (consumed by .wx-* in base.css) ---------- */
+.t-flip{
+  --wx-panel-bg:linear-gradient(#27282c,#17181a);--wx-panel-radius:8px;
+  --wx-panel-shadow:0 12px 28px rgba(0,0,0,.55),inset 0 0 0 1px #3b3c41,inset 0 1px 0 rgba(255,255,255,.07);
+  --wx-text:color-mix(in srgb,var(--on) 92%,#fff);--wx-muted:color-mix(in srgb,var(--on) 55%,#8a8e96);
+  --wx-card-bg:linear-gradient(#2d2e33 0 49.5%,#070708 49.5% 50.5%,#1a1b1e 50.5% 100%);
+  --wx-card-border:1px solid #3b3c41;--wx-card-radius:6px;
+  --wx-card-lit-bg:linear-gradient(#35363c 0 49.5%,#070708 49.5% 50.5%,#222327 50.5% 100%);
+  --wx-card-lit-shadow:inset 0 0 0 1px color-mix(in srgb,var(--on) 55%,#3b3c41),0 0 0 1px color-mix(in srgb,var(--on) 25%,transparent);
+  --wx-glow:none;--wx-head-shadow:none;--wx-overlay:none;--wx-overlay-opacity:0;--wx-plaque:none;--wx-font:inherit;--wx-weight:700;
+}
+.t-nixie{
+  --wx-panel-bg:linear-gradient(#2a1c12,#16100b);--wx-panel-radius:8px;
+  --wx-panel-shadow:0 12px 28px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.1);
+  --wx-text:#ffe4bd;--wx-muted:color-mix(in srgb,var(--on) 45%,#8a6a4a);
+  --wx-card-bg:linear-gradient(90deg,rgba(255,255,255,.1),rgba(255,255,255,.02) 16%,rgba(0,0,0,.2) 50%,rgba(255,255,255,.02) 84%,rgba(255,255,255,.08)),rgba(28,19,14,.75);
+  --wx-card-border:1px solid rgba(255,255,255,.14);--wx-card-radius:14px 14px 6px 6px;
+  --wx-card-lit-bg:linear-gradient(90deg,rgba(255,255,255,.12),rgba(255,255,255,.03) 16%,rgba(0,0,0,.18) 50%,rgba(255,255,255,.03) 84%,rgba(255,255,255,.1)),color-mix(in srgb,var(--on) 12%,rgba(28,19,14,.85));
+  --wx-card-lit-shadow:inset 0 0 18px color-mix(in srgb,var(--on) 28%,transparent),0 0 16px color-mix(in srgb,var(--on) 22%,transparent);
+  --wx-glow:drop-shadow(0 0 3px var(--on)) drop-shadow(0 0 10px var(--on));--wx-head-shadow:0 0 8px color-mix(in srgb,var(--on) 35%,transparent);
+  --wx-overlay:none;--wx-overlay-opacity:0;
+  --wx-plaque:linear-gradient(#e2c988,#b6934a 55%,#d3b46c);--wx-plaque-color:#38270f;--wx-font:inherit;--wx-weight:700;
+}
+.t-eink{
+  --wx-panel-bg:linear-gradient(#1c1d1f,#0d0e0f);--wx-panel-radius:8px;
+  --wx-panel-shadow:0 10px 22px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.14);
+  --wx-text:#c8c6bc;--wx-muted:#8a8880;--wx-card-color:#141414;--wx-card-muted:#3a3a36;
+  --wx-card-bg:var(--on);--wx-card-border:1px solid color-mix(in srgb,#000 18%,var(--on));--wx-card-radius:2px;
+  --wx-card-lit-bg:var(--on);--wx-card-lit-shadow:inset 0 0 0 2px #141414;
+  --wx-glow:none;--wx-head-shadow:none;--wx-overlay:none;--wx-overlay-opacity:0;--wx-plaque:none;--wx-font:inherit;--wx-weight:800;
+}
+.t-eink.a-1{
+  --wx-text:#c8c6bc;--wx-muted:#8a8880;--wx-card-color:#e9e7de;--wx-card-muted:#9a9890;
+  --wx-card-bg:var(--on);--wx-card-border:1px solid color-mix(in srgb,#fff 12%,var(--on));
+  --wx-card-lit-shadow:inset 0 0 0 2px #e9e7de;
+}
+.t-led{
+  --wx-panel-bg:linear-gradient(#19191b,#0b0b0c);--wx-panel-radius:9px;
+  --wx-panel-shadow:0 12px 28px rgba(0,0,0,.7),inset 0 0 0 1px #2e2e33;
+  --wx-text:#b7bbc2;--wx-muted:color-mix(in srgb,var(--on) 40%,#6a6e76);
+  --wx-card-bg:color-mix(in srgb,var(--on) 5%,#050505);--wx-card-border:1px solid #222;--wx-card-radius:4px;
+  --wx-card-lit-bg:color-mix(in srgb,var(--on) 10%,#050505);
+  --wx-card-lit-shadow:inset 0 0 12px #000,0 0 10px color-mix(in srgb,var(--on) 35%,transparent);
+  --wx-glow:drop-shadow(0 0 3px var(--on)) drop-shadow(0 0 10px color-mix(in srgb,var(--on) 60%,transparent));
+  --wx-head-shadow:none;--wx-overlay:none;--wx-overlay-opacity:0;--wx-plaque:none;--wx-font:inherit;--wx-weight:700;
+}
+.t-vfd{
+  --wx-panel-bg:linear-gradient(#0b1014,#05080a);--wx-panel-radius:7px;
+  --wx-panel-shadow:0 12px 28px rgba(0,0,0,.7),inset 0 0 0 1px #27333d,inset 0 0 24px rgba(0,0,0,.8);
+  --wx-text:color-mix(in srgb,var(--on) 88%,#fff);--wx-muted:color-mix(in srgb,var(--on) 45%,#5a6a72);
+  --wx-card-bg:color-mix(in srgb,var(--on) 4%,#040608);--wx-card-border:1px solid #1a2830;--wx-card-radius:4px;
+  --wx-card-lit-bg:color-mix(in srgb,var(--on) 9%,#040608);
+  --wx-card-lit-shadow:0 0 12px color-mix(in srgb,var(--on) 40%,transparent);
+  --wx-glow:drop-shadow(0 0 2px var(--on)) drop-shadow(0 0 8px color-mix(in srgb,var(--on) 55%,transparent));
+  --wx-head-shadow:0 0 6px color-mix(in srgb,var(--on) 40%,transparent);
+  --wx-overlay:repeating-linear-gradient(0deg,rgba(0,0,0,.3) 0 1px,transparent 1px 3px),repeating-linear-gradient(90deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px);
+  --wx-overlay-opacity:.85;--wx-plaque:none;--wx-font:inherit;--wx-weight:650;
+}
+.t-dots{
+  --wx-panel-bg:#090909;--wx-panel-radius:6px;
+  --wx-panel-shadow:0 12px 28px rgba(0,0,0,.7),inset 0 0 0 1px #272727;
+  --wx-text:color-mix(in srgb,var(--on) 90%,#fff);--wx-muted:color-mix(in srgb,var(--on) 40%,#666);
+  --wx-card-bg:#0e0e0e;--wx-card-border:1px solid #222;--wx-card-radius:4px;
+  --wx-card-lit-bg:#121212;--wx-card-lit-shadow:0 0 10px color-mix(in srgb,var(--on) 40%,transparent);
+  --wx-glow:drop-shadow(0 0 3px var(--on)) drop-shadow(0 0 8px color-mix(in srgb,var(--on) 50%,transparent));
+  --wx-head-shadow:none;--wx-overlay:none;--wx-overlay-opacity:0;--wx-plaque:none;--wx-font:inherit;--wx-weight:700;
+}
+.t-lcd{
+  --wx-panel-bg:linear-gradient(#3b3e43,#25272b);--wx-panel-radius:11px;
+  --wx-panel-shadow:0 12px 28px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.2);
+  --wx-text:#c8ccd2;--wx-muted:#8a9098;--wx-card-color:#1a1f17;--wx-card-muted:#2a3228;
+  --wx-card-bg:var(--on);--wx-card-border:1px solid color-mix(in srgb,#000 12%,var(--on));--wx-card-radius:5px;
+  --wx-card-lit-bg:var(--on);--wx-card-lit-shadow:inset 0 0 0 2px #1a1f17,2px 2px 0 rgba(0,0,0,.15);
+  --wx-glow:none;--wx-head-shadow:none;--wx-overlay:none;--wx-overlay-opacity:0;--wx-plaque:none;--wx-font:inherit;--wx-weight:700;
+}
+.t-flipdot{
+  --wx-panel-bg:#0c0c0c;--wx-panel-radius:3px;
+  --wx-panel-shadow:0 12px 28px rgba(0,0,0,.6),0 0 0 2px #9c9fa3;
+  --wx-text:color-mix(in srgb,var(--on) 92%,#fff);--wx-muted:#8a8a8a;
+  --wx-card-bg:#080808;--wx-card-border:1px solid #1b1b1b;--wx-card-radius:2px;
+  --wx-card-lit-bg:#101010;--wx-card-lit-shadow:inset 0 0 0 1px var(--on);
+  --wx-glow:none;--wx-head-shadow:none;--wx-overlay:none;--wx-overlay-opacity:0;--wx-plaque:none;--wx-font:inherit;--wx-weight:700;
+}
+.t-crt{
+  --wx-panel-bg:radial-gradient(120% 120% at 50% 50%,#0b130e,#020403 80%);--wx-panel-radius:22px / 28px;
+  --wx-panel-shadow:0 0 0 3px #cbc5b2,0 0 0 5px #8f8977,0 16px 32px rgba(0,0,0,.6),inset 0 0 20px rgba(0,0,0,.9);
+  --wx-text:color-mix(in srgb,var(--on) 90%,#fff);--wx-muted:color-mix(in srgb,var(--on) 40%,#5a6a5e);
+  --wx-card-bg:transparent;--wx-card-border:1px solid color-mix(in srgb,var(--on) 22%,transparent);--wx-card-radius:4px;
+  --wx-card-lit-bg:color-mix(in srgb,var(--on) 8%,transparent);
+  --wx-card-lit-shadow:0 0 12px color-mix(in srgb,var(--on) 45%,transparent);
+  --wx-glow:drop-shadow(0 0 2px var(--on)) drop-shadow(0 0 10px color-mix(in srgb,var(--on) 55%,transparent));
+  --wx-head-shadow:0 0 8px color-mix(in srgb,var(--on) 50%,transparent);
+  --wx-overlay:repeating-linear-gradient(0deg,rgba(0,0,0,.34) 0 2px,transparent 2px 4px),radial-gradient(120% 90% at 50% 50%,transparent 58%,rgba(0,0,0,.55));
+  --wx-overlay-opacity:1;--wx-overlay-anim:crtf 3.7s steps(40) infinite;--wx-plaque:none;--wx-font:ui-monospace,Menlo,Consolas,monospace;--wx-weight:600;
+}
+.t-odo{
+  --wx-panel-bg:linear-gradient(#1b1c1e,#0c0d0e);--wx-panel-radius:14px;
+  --wx-panel-shadow:0 12px 28px rgba(0,0,0,.6),inset 0 0 0 1px #55585d;
+  --wx-text:#d4d7da;--wx-muted:#8a8e94;
+  --wx-card-bg:#000;--wx-card-border:1px solid #6d7175;--wx-card-radius:12px;
+  --wx-card-lit-bg:#050505;--wx-card-lit-shadow:inset 0 0 0 2px #c1c5c9;
+  --wx-glow:none;--wx-head-shadow:none;--wx-overlay:none;--wx-overlay-opacity:0;--wx-plaque:none;
+  --wx-font:"DIN Alternate","Helvetica Neue",Helvetica,Arial,sans-serif;--wx-weight:700;
+}
+.t-bulbs{
+  --wx-panel-bg:linear-gradient(#101c15,#0a120e);--wx-panel-radius:5px;
+  --wx-panel-shadow:0 12px 28px rgba(0,0,0,.7),inset 0 0 0 2px #263b2e;
+  --wx-text:#fffbea;--wx-muted:color-mix(in srgb,var(--on) 40%,#8a9a7a);
+  --wx-card-bg:#0c140f;--wx-card-border:1px solid #1a2a20;--wx-card-radius:4px;
+  --wx-card-lit-bg:#101a14;--wx-card-lit-shadow:0 0 14px color-mix(in srgb,var(--on) 45%,transparent);
+  --wx-glow:drop-shadow(0 0 4px var(--on)) drop-shadow(0 0 10px var(--on));
+  --wx-head-shadow:none;--wx-overlay:none;--wx-overlay-opacity:0;--wx-plaque:none;--wx-font:inherit;--wx-weight:700;
+}
+.t-neon{
+  --wx-panel-bg:rgba(5,5,8,.72);--wx-panel-radius:8px;
+  --wx-panel-shadow:0 0 0 1px color-mix(in srgb,var(--on) 35%,#222),0 0 28px color-mix(in srgb,var(--on) 22%,transparent);
+  --wx-text:#fff;--wx-muted:color-mix(in srgb,var(--on) 55%,#aaa);
+  --wx-card-bg:rgba(0,0,0,.35);--wx-card-border:1px solid color-mix(in srgb,var(--on) 40%,transparent);--wx-card-radius:8px;
+  --wx-card-lit-bg:rgba(0,0,0,.45);
+  --wx-card-lit-shadow:0 0 16px color-mix(in srgb,var(--on) 45%,transparent),inset 0 0 12px color-mix(in srgb,var(--on) 15%,transparent);
+  --wx-glow:drop-shadow(0 0 3px var(--on)) drop-shadow(0 0 12px var(--on)) drop-shadow(0 0 28px color-mix(in srgb,var(--on) 55%,transparent));
+  --wx-head-shadow:0 0 .3em var(--on),0 0 .9em var(--on);
+  --wx-overlay:none;--wx-overlay-opacity:0;--wx-plaque:none;--wx-font:inherit;--wx-weight:500;
+}
+.t-numi{
+  --wx-panel-bg:linear-gradient(#2c2520,#0b0908);--wx-panel-radius:10px;
+  --wx-panel-shadow:0 12px 28px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.12);
+  --wx-text:#fff6e4;--wx-muted:color-mix(in srgb,var(--on) 40%,#9a8a78);
+  --wx-card-bg:linear-gradient(90deg,rgba(255,255,255,.13),rgba(255,255,255,.02) 18%,rgba(0,0,0,.16) 50%,rgba(255,255,255,.02) 82%,rgba(255,255,255,.1)),rgba(42,37,34,.62);
+  --wx-card-border:1px solid rgba(255,255,255,.16);--wx-card-radius:12px 12px 5px 5px;
+  --wx-card-lit-bg:linear-gradient(90deg,rgba(255,255,255,.15),rgba(255,255,255,.03) 18%,rgba(0,0,0,.14) 50%,rgba(255,255,255,.03) 82%,rgba(255,255,255,.12)),color-mix(in srgb,var(--on) 10%,rgba(42,37,34,.7));
+  --wx-card-lit-shadow:0 0 10px color-mix(in srgb,#ff9a3d 40%,transparent);
+  --wx-glow:drop-shadow(0 0 2px var(--on)) drop-shadow(0 0 7px #ff9a3d);
+  --wx-head-shadow:none;--wx-overlay:none;--wx-overlay-opacity:0;
+  --wx-plaque:linear-gradient(#d2d5d8,#9da1a5);--wx-plaque-color:#1c1e20;--wx-font:inherit;--wx-weight:700;
+}
+.t-edge{
+  --wx-panel-bg:linear-gradient(#151820,#080a10);--wx-panel-radius:6px;
+  --wx-panel-shadow:0 12px 28px rgba(0,0,0,.6),inset 0 0 0 1px rgba(255,255,255,.12),inset 0 -8px 16px -8px color-mix(in srgb,var(--on) 35%,transparent);
+  --wx-text:#cdd5e3;--wx-muted:color-mix(in srgb,var(--on) 40%,#7a8494);
+  --wx-card-bg:linear-gradient(100deg,rgba(255,255,255,.075),rgba(255,255,255,.015) 30%,rgba(255,255,255,.04) 70%,rgba(255,255,255,.085));
+  --wx-card-border:1px solid rgba(255,255,255,.16);--wx-card-radius:3px;
+  --wx-card-lit-bg:linear-gradient(100deg,rgba(255,255,255,.1),color-mix(in srgb,var(--on) 8%,transparent) 50%,rgba(255,255,255,.1));
+  --wx-card-lit-shadow:inset 0 -6px 10px -4px var(--on),0 0 12px color-mix(in srgb,var(--on) 35%,transparent);
+  --wx-glow:drop-shadow(0 0 3px var(--on)) drop-shadow(0 0 10px var(--on));
+  --wx-head-shadow:0 0 6px color-mix(in srgb,var(--on) 40%,transparent);
+  --wx-overlay:none;--wx-overlay-opacity:0;
+  --wx-plaque:linear-gradient(#1c1e24,#0b0c0f);--wx-plaque-color:#cdd5e3;--wx-font:inherit;--wx-weight:650;
+}
+
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="board">
+    <section id="modTicker" class="mod" aria-label="Ticker">
+      <div id="device" class="device"></div>
+    </section>
+    <section id="modWeather" class="mod weather" aria-label="Weather">
+      <div id="wxPanel" class="wx-panel">
+        <div id="wxFit" class="wx-fit">
+          <header class="wx-head">
+            <span id="wxPlace">Weather</span>
+            <span id="wxStatus" class="wx-status"></span>
+          </header>
+          <div id="wxDays" class="wx-days" role="listbox" aria-label="Daily forecast"></div>
+          <div id="wxHours" class="wx-hours" role="list" aria-label="Hourly forecast"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div id="hud">
+  <button id="bPrev" title="Previous (left arrow)" aria-label="Previous">&#9664;</button>
+  <button id="bPause" title="Pause or resume (space)" aria-label="Pause or resume">&#10073;&#10073;</button>
+  <button id="bNext" title="Next (right arrow)" aria-label="Next">&#9654;</button>
+  <button id="bFull" title="Fullscreen (F)" aria-label="Fullscreen">&#9974;</button>
+  <button id="bGear" title="Settings (S)" aria-label="Settings">&#9881;</button>
+</div>
+
+<aside id="panel" aria-label="Settings">
+  <header><h1>HomeDashboard</h1><button class="btn x" id="pClose" title="Close settings" aria-label="Close settings">&#10005;</button></header>
+
+  <section>
+    <h2>Layout</h2>
+    <div class="chips" id="layoutRow" aria-label="Module layout">
+      <button type="button" class="chip" data-layout="below" aria-pressed="true">Weather under ticker</button>
+      <button type="button" class="chip" data-layout="right" aria-pressed="false">Weather to the right</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Weather</h2>
+    <div class="line" style="margin-top:0"><input id="wxLoc" type="text" placeholder="City or place, e.g. Los Angeles" aria-label="Weather location" autocomplete="off" spellcheck="false"></div>
+    <div class="line">
+      <label for="wxUnits">Units</label>
+      <select id="wxUnits" style="flex:1"><option value="f">Fahrenheit, mph</option><option value="c">Celsius, km/h</option></select>
+      <button class="btn pri" id="wxApply">Apply</button>
+    </div>
+    <div class="line"><label for="wxReturn">Return to Today after</label><input id="wxReturn" type="range" min="3" max="120" step="1"><output id="wxReturnOut"></output></div>
+    <div class="msg" id="wxMsg" role="status"></div>
+    <p>Forecast from <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a>. No API key required.</p>
+  </section>
+
+  <section>
+    <h2>Rotation</h2>
+    <button class="ms-btn" id="msBtn" aria-expanded="true" aria-controls="msPop"><span id="msSum"></span><span class="car">&#9662;</span></button>
+    <div class="ms-pop" id="msPop">
+      <div class="ms-tools">
+        <input id="msFilter" type="search" placeholder="Filter the list" aria-label="Filter the list">
+        <button class="btn sm" id="msAll">All</button><button class="btn sm" id="msNone">None</button>
+      </div>
+      <div id="msList"></div>
+    </div>
+    <div class="line"><label for="dwell">Seconds per item</label><input id="dwell" type="range" min="2" max="120" step="1"><output id="dwellOut"></output></div>
+  </section>
+
+  <section>
+    <h2>Add a price</h2>
+    <div class="pair">
+      <input id="apBase" type="text" list="dlAssets" placeholder="Asset, e.g. NVDA" aria-label="Asset" autocomplete="off" spellcheck="false">
+      <button class="btn x" id="apSwap" title="Swap the two" aria-label="Swap asset and denomination">&#8644;</button>
+      <input id="apQuote" type="text" list="dlAssets" placeholder="Priced in, e.g. USD" aria-label="Priced in" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="hint" id="apHint"></div>
+    <div class="chips" id="apSrc" aria-label="Sources"></div>
+    <div class="line">
+      <select id="apType" aria-label="Type for new symbols" style="flex:1">
+        <option value="auto">New symbols: detect type</option>
+        <option value="crypto">New symbols: crypto</option>
+        <option value="stock">New symbols: stock</option>
+      </select>
+      <button class="btn pri" id="apAdd">Add to rotation</button>
+    </div>
+    <div class="msg" id="apMsg" role="status"></div>
+  </section>
+
+  <section>
+    <h2>Add a clock</h2>
+    <div class="line" style="margin-top:0"><input id="acTz" type="text" list="dlTz" placeholder="Time zone, e.g. Asia/Tokyo" aria-label="Time zone" autocomplete="off" spellcheck="false"></div>
+    <div class="line"><input id="acLabel" type="text" placeholder="Label (optional)" aria-label="Clock label" maxlength="24"><button class="btn pri" id="acAdd">Add</button></div>
+    <label class="chk"><input id="acH12" type="checkbox">12-hour format</label>
+    <div class="msg" id="acMsg" role="status"></div>
+  </section>
+
+  <section>
+    <h2>Gold in bitcoin-sized units</h2>
+    <p>The entry <b>GOLD BTC-UNIT</b> splits all above-ground gold into as many units as there are bitcoins, so the two prices compare the way market caps do. Type <kbd>GOLDBTC</kbd> as an asset to price it in anything.</p>
+    <div class="line"><label for="gTonnes">Above-ground gold, tonnes</label><input id="gTonnes" type="text" inputmode="numeric" aria-label="Above-ground gold in tonnes" style="width:110px;flex:none;margin-left:auto"></div>
+    <div class="line"><label for="gUnits">Number of units</label><select id="gUnits" style="flex:1"><option value="issued">Bitcoins issued so far (live)</option><option value="cap">21 million (the cap)</option></select></div>
+    <p>Default tonnage is the World Gold Council estimate for end-2025.</p>
+  </section>
+
+  <section>
+    <h2>Theme</h2>
+    <div class="thgrid" id="thGrid"></div>
+    <div class="chips" id="acRow" aria-label="Colour"></div>
+    <div class="line"><label for="cells">Digits</label><input id="cells" type="range" min="6" max="14" step="1"><output id="cellsOut"></output></div>
+    <label class="chk"><input id="optInfo" type="checkbox">Show supporting information</label>
+    <label class="chk"><input id="optSound" type="checkbox">Flap sound (split-flap and flip-dot)</label>
+  </section>
+
+  <section>
+    <h2>Data sources</h2>
+    <p>Stock prices need a free key from <a href="https://finnhub.io/register" target="_blank" rel="noopener">finnhub.io</a>. It is stored only in this browser.</p>
+    <input id="fhKey" type="password" placeholder="Finnhub API key" aria-label="Finnhub API key" autocomplete="off" spellcheck="false">
+    <div id="srcList" style="margin-top:10px"></div>
+    <p>Rates by <a href="https://www.exchangerate-api.com" target="_blank" rel="noopener">Exchange Rate API</a>, ECB via Frankfurter, and the exchanges listed above. A cross price such as NVDA in gold is calculated from two US-dollar prices.</p>
+  </section>
+
+  <section>
+    <h2>Keys</h2>
+    <p><kbd>Space</kbd> pause &nbsp; <kbd>&larr;</kbd> <kbd>&rarr;</kbd> previous / next &nbsp; <kbd>F</kbd> fullscreen &nbsp; <kbd>S</kbd> settings</p>
+    <div class="line"><button class="btn" id="bReset">Reset everything</button></div>
+    <p>HomeDashboard 0.2.0</p>
+  </section>
+</aside>
+<datalist id="dlAssets"></datalist>
+<datalist id="dlTz"></datalist>
+
+<script>
+(() => {
+'use strict';
+/* ================= utilities ================= */
+const $ = (s, r = document) => r.querySelector(s);
+const mk = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+const median = a => { const s = [...a].sort((x, y) => x - y), n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : null; };
+const uniq = a => [...new Set(a)];
+const missErr = msg => { const e = new Error(msg || 'not found'); e.miss = true; return e; };
+
+async function getJSON(url, o = {}) {
+  const c = new AbortController(), t = setTimeout(() => c.abort(), o.timeout || 12000);
+  try {
+    const r = await fetch(url, { signal: c.signal });
+    if (!r.ok) { const e = new Error('HTTP ' + r.status); e.status = r.status; if (r.status === 404 || r.status === 400) e.miss = true; throw e; }
+    return await r.json();
+  } finally { clearTimeout(t); }
+}
+async function pool(items, n, fn) {
+  const q = [...items];
+  await Promise.all(Array.from({ length: Math.min(n, q.length) }, async () => { while (q.length) await fn(q.shift()); }));
+}
+/* Try one batched request; if it fails, retry item by item so one bad symbol cannot sink the rest. */
+async function batchOrEach(items, batchFn, oneFn, onMiss) {
+  if (!items.length) return;
+  try { await batchFn(items); return; }
+  catch (e) { if (items.length === 1) { if (e.miss) { onMiss(items[0]); return; } throw e; } }
+  let ok = 0, last = null; const bad = [];
+  await pool(items, 3, async it => { try { await oneFn(it); ok++; } catch (e) { last = e; bad.push([it, e]); } });
+  if (!ok && bad.some(([, e]) => !e.miss)) throw last;
+  bad.forEach(([it]) => onMiss(it));
+}
+function errText(e) {
+  if (!e) return '';
+  if (e.name === 'AbortError') return 'timed out';
+  if (e.status === 429) return 'rate limited';
+  if (e.status === 401 || e.status === 403) return 'access denied (check key)';
+  if (e.status) return 'HTTP ' + e.status;
+  if (e instanceof TypeError) return 'unreachable';
+  return String(e.message || e).slice(0, 60);
+}
+
+/* ================= saved state ================= */
+const LS = 'homedashboard.v1';
+const state = {
+  v: 1, theme: 'flip', accent: {}, cells: 10, dwell: 8, info: true, sound: false, key: '', paused: false, items: [], custom: [],
+  goldTonnes: 220700, goldUnits: 'issued',
+  layout: 'below', weatherPlace: '', weatherLat: null, weatherLon: null, weatherLabel: '', weatherUnits: 'f', weatherReturn: 20
+};
+
+/* ================= assets ================= */
+const A = Object.create(null);
+function def(sym, name, cls, x) { return A[sym] = Object.assign({ sym, name, cls, disp: sym }, x || {}); }
+def('USD', 'US dollar', 'fiat', { unit: 'US dollars' });
+('BTC:Bitcoin:bitcoin ETH:Ethereum:ethereum SOL:Solana:solana XRP:XRP:ripple BNB:BNB:binancecoin DOGE:Dogecoin:dogecoin ' +
+ 'ADA:Cardano:cardano LTC:Litecoin:litecoin BCH:Bitcoin_Cash:bitcoin-cash LINK:Chainlink:chainlink AVAX:Avalanche:avalanche-2 ' +
+ 'DOT:Polkadot:polkadot XMR:Monero:monero XLM:Stellar:stellar UNI:Uniswap:uniswap AAVE:Aave:aave SUI:Sui:sui TRX:TRON:tron ' +
+ 'TON:Toncoin:the-open-network ZEC:Zcash:zcash').split(' ').forEach(s => { const [k, n, cg] = s.split(':'); def(k, n.replace(/_/g, ' '), 'crypto', { cg }); });
+('EUR:Euro GBP:British_pound JPY:Japanese_yen CHF:Swiss_franc CAD:Canadian_dollar AUD:Australian_dollar NZD:New_Zealand_dollar ' +
+ 'CNY:Chinese_yuan HKD:Hong_Kong_dollar SGD:Singapore_dollar INR:Indian_rupee KRW:South_Korean_won MXN:Mexican_peso BRL:Brazilian_real ' +
+ 'SEK:Swedish_krona NOK:Norwegian_krone DKK:Danish_krone PLN:Polish_zloty CZK:Czech_koruna HUF:Hungarian_forint TRY:Turkish_lira ' +
+ 'ZAR:South_African_rand ILS:Israeli_shekel THB:Thai_baht IDR:Indonesian_rupiah PHP:Philippine_peso MYR:Malaysian_ringgit')
+  .split(' ').forEach(s => { const [k, n] = s.split(':'); def(k, n.replace(/_/g, ' '), 'fiat'); });
+def('XAU', 'Gold (troy oz)', 'metal', { disp: 'GOLD OZ', unit: 'troy ounces of gold' });
+def('XAG', 'Silver (troy oz)', 'metal', { disp: 'SILVER OZ', unit: 'troy ounces of silver' });
+def('XPT', 'Platinum (troy oz)', 'metal', { disp: 'PLATINUM OZ', unit: 'troy ounces of platinum' });
+def('XPD', 'Palladium (troy oz)', 'metal', { disp: 'PALLADIUM OZ', unit: 'troy ounces of palladium' });
+def('HG', 'Copper (lb)', 'metal', { disp: 'COPPER LB', unit: 'pounds of copper' });
+def('SATS', 'Satoshis', 'crypto', { of: 'BTC', f: 1e-8, unit: 'satoshis' });
+def('XAU-G', 'Gold (gram)', 'metal', { of: 'XAU', f: 1 / 31.1034768, disp: 'GOLD G', unit: 'grams of gold' });
+def('XAG-G', 'Silver (gram)', 'metal', { of: 'XAG', f: 1 / 31.1034768, disp: 'SILVER G', unit: 'grams of silver' });
+/* All the gold above ground, split into as many units as there are bitcoins: same unit count, so prices compare like market caps. */
+def('XAU-BTCU', 'Gold in bitcoin-sized units', 'metal', { of: 'XAU', dyn: 1, disp: 'GOLD BTC-UNIT', unit: 'bitcoin-sized units of gold' });
+('NVDA:NVIDIA AAPL:Apple MSFT:Microsoft GOOGL:Alphabet AMZN:Amazon META:Meta TSLA:Tesla MSTR:Strategy COIN:Coinbase AMD:AMD ' +
+ 'NFLX:Netflix SPY:S&P_500_ETF QQQ:Nasdaq-100_ETF GLD:Gold_ETF IBIT:iShares_Bitcoin_ETF')
+  .split(' ').forEach(s => { const [k, n] = s.split(':'); def(k, n.replace(/_/g, ' '), 'stock', { unit: 'shares of ' + n.replace(/_/g, ' ') }); });
+const ALIAS = { GOLDBTC: 'XAU-BTCU', 'GOLD-BTC': 'XAU-BTCU', GOLDUNIT: 'XAU-BTCU', GOLD: 'XAU', SILVER: 'XAG', PLATINUM: 'XPT', PALLADIUM: 'XPD', COPPER: 'HG', SAT: 'SATS', SATOSHI: 'SATS', SATOSHIS: 'SATS', XBT: 'BTC', DOLLAR: 'USD', DOLLARS: 'USD' };
+const CLS_NAME = { crypto: 'crypto', fiat: 'currency', metal: 'metal', stock: 'stock' };
+function findAsset(raw) {
+  const s = String(raw || '').trim().toUpperCase();
+  if (!s) return null;
+  if (A[s]) return A[s];
+  if (ALIAS[s]) return A[ALIAS[s]];
+  for (const k in A) if (A[k].name.toUpperCase() === s) return A[k];
+  return null;
+}
+const unitOf = a => a.unit || (a.cls === 'fiat' ? a.name + 's' : a.name);
+
+/* ================= price sources ================= */
+const S = Object.create(null);
+function source(id, o) {
+  S[id] = Object.assign({
+    id, q: {}, d: {}, miss: new Set(), list: null, only: null, need: null,
+    next: 0, last: 0, fail: 0, err: '', okAt: 0, busy: false,
+    every: () => 20000, off: () => false, canDirect: () => false,
+    covers(a) {
+      return this.cls.includes(a.cls) && !a.of && a.sym !== 'USD' && !this.miss.has(a.sym) &&
+        (!this.only || this.only.includes(a.sym)) && (!this.list || this.list.has(a.sym)) && (!this.need || !!a[this.need]);
+    },
+    put(sym, v) { this.q[sym] = Object.assign({ t: Date.now(), chg: null, hi: null, lo: null, asof: null }, v); }
+  }, o);
+}
+/* A "direct" quote is a real traded pair (ETH/BTC). Tries the pair, then its inverse, then gives up for good. */
+async function direct(s, key, one) {
+  const [bs, qs] = key.split('/'), b = A[bs], q = A[qs], cur = s.d[key];
+  if (!b || !q || (cur && cur.none)) return;
+  const modes = cur && cur.px ? [cur.inv ? 1 : 0] : [0, 1];
+  for (const inv of modes) {
+    try {
+      const r = inv ? await one(q, b) : await one(b, q);
+      if (!(r.px > 0)) throw missErr();
+      s.d[key] = inv
+        ? { px: 1 / r.px, chg: r.chg == null ? null : 1 / (1 + r.chg) - 1, hi: r.lo ? 1 / r.lo : null, lo: r.hi ? 1 / r.hi : null, inv: true, t: Date.now() }
+        : { px: r.px, chg: r.chg, hi: r.hi || null, lo: r.lo || null, t: Date.now() };
+      return;
+    } catch (e) { if (!e.miss) throw e; }
+  }
+  s.d[key] = { none: true };
+}
+const cryptoPair = (b, q) => b.cls === 'crypto' && (q.cls === 'crypto' || q.cls === 'fiat');
+
+source('coinbase', {
+  name: 'Coinbase', short: 'COINBASE', cls: ['crypto', 'fiat'], url: 'https://www.coinbase.com', noStat: new Set(), canDirect: cryptoPair,
+  stat(j) { const last = +j.last, open = +j.open; return { px: last, chg: open > 0 ? last / open - 1 : null, hi: +j.high || null, lo: +j.low || null }; },
+  async loadList() { const j = await getJSON('https://api.coinbase.com/v2/exchange-rates?currency=USD'); this.rates = j.data.rates; this.list = new Set(Object.keys(this.rates)); },
+  async fetch(assets, pairs) {
+    await this.loadList();
+    for (const a of assets) { const v = +this.rates[a.sym]; if (v > 0) { if (!this.q[a.sym] || a.cls !== 'crypto' || this.noStat.has(a.sym)) this.put(a.sym, { usd: 1 / v }); } }
+    await pool(assets.filter(a => a.cls === 'crypto' && this.rates[a.sym] && !this.noStat.has(a.sym)), 4, async a => {
+      try { const p = this.stat(await getJSON('https://api.exchange.coinbase.com/products/' + a.sym + '-USD/stats')); if (p.px > 0) this.put(a.sym, { usd: p.px, chg: p.chg, hi: p.hi, lo: p.lo }); }
+      catch (e) { if (e.miss) this.noStat.add(a.sym); const v = +this.rates[a.sym]; if (v > 0) this.put(a.sym, { usd: 1 / v }); }
+    });
+    for (const key of pairs) await direct(this, key, async (b, q) => this.stat(await getJSON('https://api.exchange.coinbase.com/products/' + b.sym + '-' + q.sym + '/stats')));
+  }
+});
+
+source('kraken', {
+  name: 'Kraken', short: 'KRAKEN', cls: ['crypto'], url: 'https://www.kraken.com', canDirect: cryptoPair,
+  code: a => ({ BTC: 'XBT', DOGE: 'XDG' }[a.sym] || a.sym),
+  async call(pairs) {
+    const j = await getJSON('https://api.kraken.com/0/public/Ticker?pair=' + pairs.join(','));
+    if (j.error && j.error.length) throw (/unknown asset pair/i.test(j.error[0]) ? missErr(j.error[0]) : new Error(j.error[0]));
+    return j.result || {};
+  },
+  parse(v) { const last = +v.c[0], o = +v.o; return { px: last, chg: o > 0 ? last / o - 1 : null, hi: +v.h[1] || null, lo: +v.l[1] || null }; },
+  async fetch(assets, pairs) {
+    const go = async list => {
+      const res = await this.call(list.map(a => this.code(a) + 'USD'));
+      for (const a of list) {
+        const k = this.code(a), key = [k + 'USD', 'X' + k + 'ZUSD', k + 'ZUSD', 'X' + k + 'USD'].find(x => res[x]);
+        if (!key) { if (list.length === 1) throw missErr(); continue; }
+        const p = this.parse(res[key]); this.put(a.sym, { usd: p.px, chg: p.chg, hi: p.hi, lo: p.lo });
+      }
+    };
+    await batchOrEach(assets, go, a => go([a]), a => this.miss.add(a.sym));
+    for (const key of pairs) await direct(this, key, async (b, q) => { const v = Object.values(await this.call([this.code(b) + this.code(q)]))[0]; if (!v) throw missErr(); return this.parse(v); });
+  }
+});
+
+source('binance', {
+  name: 'Binance (USDT pairs)', short: 'BINANCE', cls: ['crypto'], url: 'https://www.binance.com',
+  async fetch(assets) {
+    const base = 'https://data-api.binance.vision/api/v3/ticker/24hr';
+    const take = (a, r) => { const last = +r.lastPrice; if (!(last > 0)) throw missErr(); this.put(a.sym, { usd: last, chg: +r.priceChangePercent / 100, hi: +r.highPrice || null, lo: +r.lowPrice || null }); };
+    await batchOrEach(assets,
+      async list => { const arr = await getJSON(base + '?symbols=' + encodeURIComponent(JSON.stringify(list.map(a => a.sym + 'USDT')))); const by = {}; arr.forEach(r => by[r.symbol] = r); list.forEach(a => { if (by[a.sym + 'USDT']) take(a, by[a.sym + 'USDT']); }); },
+      async a => take(a, await getJSON(base + '?symbol=' + a.sym + 'USDT')),
+      a => this.miss.add(a.sym));
+  }
+});
+
+source('gemini', {
+  name: 'Gemini', short: 'GEMINI', cls: ['crypto'], url: 'https://www.gemini.com', every: () => 30000, canDirect: cryptoPair,
+  async one(sym) {
+    try { const j = await getJSON('https://api.gemini.com/v2/ticker/' + sym); const c = +j.close, o = +j.open; if (c > 0) return { px: c, chg: o > 0 ? c / o - 1 : null, hi: +j.high || null, lo: +j.low || null }; } catch (e) { /* fall through to v1 */ }
+    const j = await getJSON('https://api.gemini.com/v1/pubticker/' + sym);
+    if (!(+j.last > 0)) throw missErr();
+    return { px: +j.last, chg: null };
+  },
+  async fetch(assets, pairs) {
+    let ok = 0, last = null;
+    await pool(assets, 3, async a => {
+      try { const p = await this.one((a.sym + 'usd').toLowerCase()); this.put(a.sym, { usd: p.px, chg: p.chg, hi: p.hi, lo: p.lo }); ok++; }
+      catch (e) { if (e.miss) this.miss.add(a.sym); else last = e; }
+    });
+    if (!ok && last) throw last;
+    for (const key of pairs) await direct(this, key, (b, q) => this.one((b.sym + q.sym).toLowerCase()));
+  }
+});
+
+source('coingecko', {
+  name: 'CoinGecko', short: 'COINGECKO', cls: ['crypto'], need: 'cg', url: 'https://www.coingecko.com', every: () => 120000,
+  async fetch(assets) {
+    if (!assets.length) return;
+    const j = await getJSON('https://api.coingecko.com/api/v3/simple/price?ids=' + assets.map(a => encodeURIComponent(a.cg)).join(',') + '&vs_currencies=usd&include_24hr_change=true&include_last_updated_at=true');
+    for (const a of assets) {
+      const r = j[a.cg];
+      if (r && r.usd > 0) this.put(a.sym, { usd: r.usd, chg: r.usd_24h_change != null ? r.usd_24h_change / 100 : null, asof: r.last_updated_at ? r.last_updated_at * 1000 : null });
+      else this.miss.add(a.sym);
+    }
+  }
+});
+
+const MEMPOOL_FIAT = ['EUR', 'GBP', 'CAD', 'CHF', 'AUD', 'JPY'];
+source('mempool', {
+  name: 'mempool.space', short: 'MEMPOOL', cls: ['crypto'], only: ['BTC'], url: 'https://mempool.space', every: () => 60000,
+  canDirect: (b, q) => b.sym === 'BTC' && MEMPOOL_FIAT.includes(q.sym),
+  async fetch() {
+    const j = await getJSON('https://mempool.space/api/v1/prices'), asof = j.time ? j.time * 1000 : null;
+    if (j.USD > 0) this.put('BTC', { usd: j.USD, asof });
+    for (const k of MEMPOOL_FIAT) if (j[k] > 0) this.d['BTC/' + k] = { px: j[k], chg: null, hi: null, lo: null, t: Date.now() };
+  }
+});
+
+source('goldapi', {
+  name: 'gold-api.com', short: 'GOLD-API', cls: ['metal'], only: ['XAU', 'XAG', 'XPT', 'XPD', 'HG'], url: 'https://gold-api.com', every: () => 60000,
+  async fetch(assets) {
+    let ok = 0, last = null;
+    await pool(assets, 2, async a => {
+      try { const j = await getJSON('https://api.gold-api.com/price/' + a.sym); if (!(j.price > 0)) throw missErr(); this.put(a.sym, { usd: j.price, asof: Date.parse(j.updatedAt) || null }); ok++; }
+      catch (e) { if (e.miss) this.miss.add(a.sym); else last = e; }
+    });
+    if (!ok && last) throw last;
+  }
+});
+
+source('frankfurter', {
+  name: 'Frankfurter (ECB daily)', short: 'ECB', cls: ['fiat'], url: 'https://frankfurter.dev', every: () => 30 * 60000,
+  async fetch(assets) {
+    const start = new Date(Date.now() - 9 * 864e5).toISOString().slice(0, 10);
+    const j = await getJSON('https://api.frankfurter.dev/v1/' + start + '..?base=USD');
+    const days = Object.keys(j.rates || {}).sort(); if (!days.length) throw new Error('no data');
+    const cur = j.rates[days[days.length - 1]], prev = days.length > 1 ? j.rates[days[days.length - 2]] : null;
+    this.list = new Set(Object.keys(cur));
+    const asof = Date.parse(days[days.length - 1] + 'T15:00:00Z');
+    for (const a of assets) if (cur[a.sym] > 0) this.put(a.sym, { usd: 1 / cur[a.sym], chg: prev && prev[a.sym] > 0 ? prev[a.sym] / cur[a.sym] - 1 : null, asof });
+  }
+});
+
+source('erapi', {
+  name: 'ExchangeRate-API (daily)', short: 'ER-API', cls: ['fiat'], url: 'https://www.exchangerate-api.com', every: () => 60 * 60000,
+  async loadList() { const j = await getJSON('https://open.er-api.com/v6/latest/USD'); if (j.result !== 'success') throw new Error('no data'); this.rates = j.rates; this.asof = j.time_last_update_unix ? j.time_last_update_unix * 1000 : null; this.list = new Set(Object.keys(j.rates)); },
+  async fetch(assets) { await this.loadList(); for (const a of assets) if (this.rates[a.sym] > 0) this.put(a.sym, { usd: 1 / this.rates[a.sym], asof: this.asof }); }
+});
+
+source('fawaz', {
+  name: 'Currency-API (daily)', short: 'CURR-API', cls: ['fiat', 'metal'], only: null, url: 'https://github.com/fawazahmed0/exchange-api', every: () => 6 * 3600000,
+  covers(a) { return (a.cls === 'fiat' || ['XAU', 'XAG', 'XPT', 'XPD'].includes(a.sym)) && !a.of && a.sym !== 'USD' && !this.miss.has(a.sym) && (!this.list || this.list.has(a.sym)); },
+  async fetch(assets) {
+    const j = await getJSON('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
+    const r = j.usd || {}, asof = Date.parse(j.date + 'T00:00:00Z') || null;
+    this.list = new Set(Object.keys(r).map(k => k.toUpperCase()));
+    for (const a of assets) { const v = r[a.sym.toLowerCase()]; if (v > 0) this.put(a.sym, { usd: 1 / v, asof }); }
+  }
+});
+
+source('finnhub', {
+  name: 'Finnhub (stocks)', short: 'FINNHUB', cls: ['stock'], url: 'https://finnhub.io', off: () => !state.key, offMsg: 'needs a free API key',
+  every: n => Math.max(30000, n * 1500),
+  async quote(sym) { return getJSON('https://finnhub.io/api/v1/quote?symbol=' + encodeURIComponent(sym) + '&token=' + encodeURIComponent(state.key)); },
+  async fetch(assets) {
+    let ok = 0, last = null;
+    await pool(assets, 2, async a => {
+      try {
+        const j = await this.quote(a.sym);
+        if (!(j.c > 0)) { this.miss.add(a.sym); return; }
+        this.put(a.sym, { usd: j.c, chg: j.dp != null ? j.dp / 100 : null, hi: j.h || null, lo: j.l || null, asof: j.t ? j.t * 1000 : null }); ok++;
+      } catch (e) { last = e; }
+    });
+    if (!ok && last) throw last;
+  }
+});
+
+/* Which sources are used when an entry is left on "Auto". */
+const AUTO = { crypto: ['coinbase', 'kraken', 'binance', 'gemini', 'coingecko', 'mempool'], fiat: ['frankfurter', 'erapi', 'fawaz', 'coinbase'], metal: ['goldapi', 'fawaz'], stock: ['finnhub'] };
+function chosen(a, explicit) {
+  const cov = Object.values(S).filter(s => s.covers(a));
+  let pick = explicit && explicit.length ? cov.filter(s => explicit.includes(s.id)) : [];
+  if (!pick.length) {
+    const ok = (AUTO[a.cls] || []).map(id => S[id]).filter(s => s && s.covers(a) && !s.off() && s.fail < 2);
+    pick = ok.slice(0, a.cls === 'crypto' ? 2 : 1);
+    if (!pick.length) pick = cov.filter(s => !s.off()).slice(0, 1);
+    if (!pick.length) pick = cov.slice(0, 1);
+  }
+  return pick;
+}
+function directSources(b, q, explicit) {
+  if (b.of || q.of || q.sym === 'USD' || b.sym === 'USD') return [];
+  const key = b.sym + '/' + q.sym;
+  return chosen(b, explicit).filter(s => s.canDirect(b, q) && !(s.d[key] && s.d[key].none));
+}
+const activeItems = () => state.items.filter(i => i.on);
+
+/* What every source needs to fetch for the current rotation. */
+function needs() {
+  const m = new Map();
+  const add = (s, kind, v) => { if (!m.has(s.id)) m.set(s.id, { assets: new Set(), pairs: new Set() }); m.get(s.id)[kind].add(v); };
+  const leg = (a, explicit) => { const r = a.of ? A[a.of] : a; if (r && r.sym !== 'USD') chosen(r, explicit).forEach(s => add(s, 'assets', r.sym)); };
+  for (const it of activeItems()) {
+    if (it.type === 'price') {
+      const b = A[it.base], q = A[it.quote]; if (!b || !q) continue;
+      leg(b, it.sources); leg(q, it.sources);
+      directSources(b, q, it.sources).forEach(s => add(s, 'pairs', b.sym + '/' + q.sym));
+    } else if (it.type === 'vital' && it.key === 'mcap') leg(A.BTC, []);
+  }
+  return m;
+}
+
+/* Rolling local history, so a 24-hour change can be shown for feeds that do not publish one. */
+const HLS = 'homedashboard.hist';
+let HIST = {}; try { HIST = JSON.parse(localStorage.getItem(HLS)) || {}; } catch (e) { HIST = {}; }
+let histAt = 0;
+function sampleHist() {
+  const now = Date.now(); if (now - histAt < 15 * 60000) return; histAt = now;
+  const syms = new Set(); needs().forEach(n => n.assets.forEach(s => syms.add(s)));
+  for (const s of syms) { const l = legUSD(A[s], []); if (!l) continue; (HIST[s] = HIST[s] || []).push([now, l.usd]); HIST[s] = HIST[s].filter(p => now - p[0] < 27 * 3600000); }
+  try { localStorage.setItem(HLS, JSON.stringify(HIST)); } catch (e) { /* storage unavailable */ }
+}
+function histChg(sym, usd) {
+  const h = HIST[sym]; if (!h) return null;
+  const now = Date.now(); let best = null;
+  for (const p of h) { const age = now - p[0]; if (age >= 22 * 3600000 && age <= 26.5 * 3600000 && (!best || Math.abs(age - 864e5) < Math.abs(now - best[0] - 864e5))) best = p; }
+  return best ? usd / best[1] - 1 : null;
+}
+
+/* US-dollar value of one unit of an asset, as a median across the chosen sources. */
+function legUSD(a, explicit) {
+  if (!a) return null;
+  if (a.sym === 'USD') return { usd: 1, chg: 0, hi: null, lo: null, t: Date.now(), srcs: [] };
+  if (a.of) { const f = factorOf(a), l = f == null ? null : legUSD(A[a.of], explicit); return l && Object.assign({}, l, { usd: l.usd * f, hi: l.hi && l.hi * f, lo: l.lo && l.lo * f }); }
+  let ss = chosen(a, explicit).filter(s => s.q[a.sym]);
+  if (!ss.length) ss = Object.values(S).filter(s => s.q[a.sym] && s.cls.includes(a.cls)).slice(0, 1);
+  if (!ss.length) return null;
+  const qs = ss.map(s => s.q[a.sym]), usd = median(qs.map(q => q.usd));
+  const chgs = qs.map(q => q.chg).filter(x => x != null);
+  const withHi = qs.find(q => q.hi && q.lo);
+  return {
+    usd, chg: chgs.length ? median(chgs) : histChg(a.sym, usd),
+    hi: withHi ? withHi.hi : null, lo: withHi ? withHi.lo : null,
+    t: Math.min(...qs.map(q => q.asof || q.t)), srcs: ss.map(s => s.id)
+  };
+}
+function whyNot(a, explicit) {
+  if (!a) return 'UNKNOWN SYMBOL';
+  if (a.dyn && factorOf(a) == null) return V.err ? 'MEMPOOL.SPACE ' + V.err.toUpperCase() : 'WAITING FOR BITCOIN SUPPLY';
+  const r = a.of ? A[a.of] : a;
+  if (r.sym === 'USD') return '';
+  if (r.cls === 'stock' && !state.key) return 'STOCKS NEED A FINNHUB KEY - SEE SETTINGS';
+  const ss = chosen(r, explicit);
+  if (!ss.length) return 'NO SOURCE HAS ' + r.sym;
+  const bad = ss.find(s => s.err);
+  return bad ? bad.short + ' ' + bad.err.toUpperCase() : '';
+}
+/* Gold re-cut into bitcoin-sized units: ounces per unit = above-ground gold / number of bitcoins. */
+const OZ_PER_TONNE = 1e6 / 31.1034768;
+const goldOz = () => Math.max(0, +state.goldTonnes || 0) * OZ_PER_TONNE;
+function btcUnits() { if (state.goldUnits === 'cap') return 21e6; const b = tip(); return b ? supplyAt(b.height) : null; }
+function factorOf(a) { if (!a.dyn) return a.f; const n = btcUnits(), oz = goldOz(); return n && oz ? oz / n : null; }
+function unitInfo(a) {
+  const f = factorOf(a); if (f == null) return [];
+  const n = btcUnits(), g = legUSD(A.XAU, []), btc = legUSD(A.BTC, []);
+  const out = ['ONE UNIT = ' + fmtPlain(f, 2) + ' OZ OF GOLD', fmtPlain(f * 31.1034768 / 1000, 2) + ' KG', fmtPlain(+state.goldTonnes, 0) + ' T OF GOLD / ' + fmtPlain(n, 0) + ' BTC'];
+  if (g) out.push('GOLD MARKET CAP $' + fmtPlain(g.usd * goldOz()));
+  if (g && btc && Date.now() - btc.t < 300000) out.push('BTC IS ' + (btc.usd / (g.usd * f) * 100).toFixed(2) + '% OF THIS');
+  return out;
+}
+/* The price of an entry: base asset expressed in units of the quote asset. */
+function quote(it) {
+  const b = A[it.base], q = A[it.quote];
+  if (!b || !q) return { err: 'UNKNOWN SYMBOL' };
+  if (b.sym === q.sym) return { px: 1, chg: 0, t: Date.now(), kind: '', srcs: [] };
+  const key = b.sym + '/' + q.sym;
+  const ds = directSources(b, q, it.sources).map(s => [s, s.d[key]]).filter(([, d]) => d && d.px > 0);
+  if (ds.length) {
+    const chgs = ds.map(([, d]) => d.chg).filter(x => x != null), hl = ds.find(([, d]) => d.hi && d.lo);
+    return { px: median(ds.map(([, d]) => d.px)), chg: chgs.length ? median(chgs) : null, hi: hl ? hl[1].hi : null, lo: hl ? hl[1].lo : null,
+      t: Math.min(...ds.map(([, d]) => d.t)), kind: 'DIRECT MARKET', srcs: ds.map(([s]) => s.id) };
+  }
+  const lb = legUSD(b, it.sources), lq = legUSD(q, it.sources);
+  if (!lb || !lq) return { err: whyNot(lb ? q : b, it.sources) || 'WAITING FOR DATA' };
+  const usdQ = q.sym === 'USD', usdB = b.sym === 'USD';
+  return {
+    px: lb.usd / lq.usd,
+    chg: lb.chg != null && lq.chg != null ? (1 + lb.chg) / (1 + lq.chg) - 1 : null,
+    hi: usdQ ? lb.hi : null, lo: usdQ ? lb.lo : null,
+    t: Math.min(lb.t, lq.t), kind: usdQ || usdB ? '' : 'DERIVED VIA USD',
+    legs: usdQ || usdB ? null : [[b, lb.usd], [q, lq.usd]],
+    srcs: uniq([...lb.srcs, ...lq.srcs])
+  };
+}
+
+/* ================= polling ================= */
+let onData = () => {};
+function pump(now) {
+  for (const [id, n] of needs()) {
+    const s = S[id]; if (!s || s.busy || s.off()) continue;
+    const fresh = [...n.assets].some(x => !s.q[x] && !s.miss.has(x)) || [...n.pairs].some(k => !s.d[k]);
+    if (now < s.next && !(fresh && !s.fail && now - s.last > 2500)) continue;
+    runSource(s, n);
+  }
+}
+async function runSource(s, n) {
+  s.busy = true; s.last = Date.now();
+  const assets = [...n.assets].map(x => A[x]).filter(a => a && !s.miss.has(a.sym));
+  const every = s.every(assets.length);
+  try { await s.fetch(assets, [...n.pairs]); s.fail = 0; s.err = ''; s.okAt = Date.now(); s.next = Date.now() + every; }
+  catch (e) { s.fail++; s.err = errText(e); s.next = Date.now() + Math.min(Math.max(every, 15000) * 2 ** s.fail, 600000); }
+  s.busy = false;
+  try { sampleHist(); } catch (e) { /* ignore */ }
+  onData();
+}
+
+/* ================= number formatting ================= */
+const MULT = { K: 'THOUSANDS', M: 'MILLIONS', B: 'BILLIONS', T: 'TRILLIONS', Q: 'QUADRILLIONS' };
+function decimalsFor(v) {
+  if (v >= 10000) return 0;
+  if (v >= 10) return 2;
+  if (v >= 1) return 4;
+  if (v === 0) return 2;
+  return Math.min(8, Math.max(4, 3 - Math.floor(Math.log10(v))));
+}
+/* Fit a number into a fixed number of display cells. With attach=true, separators ride on a digit and cost nothing. */
+function fmtNum(x, cells, attach, dec) {
+  if (x == null || !isFinite(x)) return { text: '----', mult: '' };
+  const neg = x < 0, av = Math.abs(x);
+  const width = s => (attach ? s.replace(/[.,]/g, '').length : s.length);
+  const build = (v, d, group) => { let [ip, fp] = v.toFixed(d).split('.'); if (group) ip = ip.replace(/\B(?=(\d{3})+$)/g, ','); return (neg ? '-' : '') + ip + (fp ? '.' + fp : ''); };
+  /* prefer thousands separators and the wanted decimals; give up decimals first, then separators */
+  const fit = (v, want) => { for (let d = want; d >= 0; d--) { const s = build(v, d, true); if (width(s) <= cells) return s; } const s = build(v, 0, false); return width(s) <= cells ? s : null; };
+  let s = fit(av, av >= 10000 ? 0 : dec != null ? dec : decimalsFor(av));
+  if (s) return { text: s, mult: '' };
+  for (const [m, f] of [['Q', 1e15], ['T', 1e12], ['B', 1e9], ['M', 1e6], ['K', 1e3]]) if (av / f >= 1) { s = fit(av / f, 3); if (s) return { text: s, mult: m }; }
+  return { text: build(av, 0, false).slice(0, cells), mult: '' };
+}
+function fmtPlain(x, dec) {
+  if (x == null || !isFinite(x)) return '-';
+  const v = Math.abs(x);
+  if (v >= 1e15) return (x / 1e15).toFixed(2) + 'Q';
+  if (v >= 1e12) return (x / 1e12).toFixed(2) + 'T';
+  if (v >= 1e9) return (x / 1e9).toFixed(2) + 'B';
+  let [ip, fp] = v.toFixed(dec != null ? dec : decimalsFor(v)).split('.'); ip = ip.replace(/\B(?=(\d{3})+$)/g, ',');
+  return (x < 0 ? '-' : '') + ip + (fp ? '.' + fp : '');
+}
+function ageText(t) {
+  const d = Date.now() - t;
+  if (d < 150000) return 'LIVE';
+  if (d < 3600000) return Math.round(d / 60000) + ' MIN AGO';
+  if (d < 36 * 3600000) return Math.round(d / 3600000) + ' H AGO';
+  return 'AS OF ' + new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toUpperCase();
+}
+const dispOf = sym => (A[sym] ? A[sym].disp : sym);
+
+/* ================= views: what one rotation entry shows ================= */
+function priceView(it) {
+  const label = dispOf(it.base) + '/' + dispOf(it.quote), r = quote(it);
+  if (!(r.px > 0)) return { label, right: '', value: null, info: [r.err || 'WAITING FOR DATA'] };
+  const usd = it.quote === 'USD', mark = usd ? '$' : '';
+  const info = [];
+  if (r.chg != null) info.push({ t: (r.chg >= 0 ? '▲ ' : '▼ ') + Math.abs(r.chg * 100).toFixed(2) + '%', c: r.chg >= 0 ? 'up' : 'dn' });
+  if (r.hi && r.lo) { info.push('H ' + mark + fmtPlain(r.hi)); info.push('L ' + mark + fmtPlain(r.lo)); }
+  const dynA = [A[it.base], A[it.quote]].find(a => a && a.dyn);
+  if (dynA) info.unshift(...unitInfo(dynA));
+  else if (r.kind) info.push(r.kind);
+  if (r.legs && !dynA) r.legs.forEach(([a, usd]) => info.push(a.disp + ' $' + fmtPlain(usd)));
+  info.push(ageText(r.t));
+  const names = r.srcs.map(id => S[id].short);
+  return { label, right: names.length > 2 ? 'MEDIAN OF ' + names.length : names.join('+'), value: r.px, prefix: mark, info, dir: r.chg == null ? '' : r.chg >= 0 ? 'up' : 'dn' };
+}
+
+const _dtf = {};
+function dtf(tz, opt) { const k = tz + JSON.stringify(opt); return _dtf[k] || (_dtf[k] = new Intl.DateTimeFormat('en-GB', Object.assign({ timeZone: tz }, opt))); }
+const LOCAL_TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch (e) { return 'UTC'; } })();
+const tzCity = tz => tz.split('/').pop().replace(/_/g, ' ');
+function clockView(it) {
+  const now = new Date(), p = {};
+  try {
+    dtf(it.tz, { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: it.h12 ? 'h12' : 'h23' }).formatToParts(now).forEach(x => p[x.type] = x.value);
+    let off = 'UTC';
+    try { off = (dtf(it.tz, { timeZoneName: 'shortOffset' }).formatToParts(now).find(x => x.type === 'timeZoneName') || { value: 'UTC' }).value.replace('GMT', 'UTC'); } catch (e) { /* older browsers */ }
+    const hour = it.h12 ? String(+p.hour) : p.hour;
+    const date = dtf(it.tz, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(now).replace(/,/g, '').toUpperCase();
+    return { label: (it.label || tzCity(it.tz)).toUpperCase(), right: off + (it.h12 && p.dayPeriod ? ' ' + p.dayPeriod.toUpperCase().replace(/\./g, '') : ''),
+      text: hour + ':' + p.minute + ':' + p.second, alt: hour + ':' + p.minute, info: [date] };
+  } catch (e) { return { label: String(it.tz).toUpperCase(), value: null, info: ['UNKNOWN TIME ZONE'] }; }
+}
+
+/* ---- Bitcoin network vitals (mempool.space) ---- */
+const V = {
+  d: {}, at: {}, busy: {}, err: '', okAt: 0, fail: 0,
+  ep: {
+    blocks: ['https://mempool.space/api/v1/blocks', 45000],
+    da: ['https://mempool.space/api/v1/difficulty-adjustment', 300000],
+    hash: ['https://mempool.space/api/v1/mining/hashrate/3d', 900000],
+    fees: ['https://mempool.space/api/v1/fees/recommended', 60000],
+    mp: ['https://mempool.space/api/mempool', 60000]
+  }
+};
+function pumpVitals(now) {
+  const need = new Set();
+  for (const it of activeItems()) {
+    if (it.type === 'vital' && VITALS[it.key]) VITALS[it.key].need.forEach(k => need.add(k));
+    else if (it.type === 'price' && state.goldUnits !== 'cap' && [A[it.base], A[it.quote]].some(a => a && a.dyn)) need.add('blocks');
+  }
+  for (const k of need) {
+    if (V.busy[k] || now < (V.at[k] || 0)) continue;
+    const [url, every] = V.ep[k]; V.busy[k] = true;
+    getJSON(url).then(j => { V.d[k] = j; V.err = ''; V.fail = 0; V.okAt = Date.now(); V.at[k] = Date.now() + every; })
+      .catch(e => { V.err = errText(e); V.fail++; V.at[k] = Date.now() + Math.min(30000 * 2 ** V.fail, 600000); })
+      .finally(() => { V.busy[k] = false; onData(); });
+  }
+}
+const HALVING = 210000;
+const subsidyAt = h => { const era = Math.floor(h / HALVING); return era >= 33 ? 0 : Math.floor(50e8 / 2 ** era) / 1e8; };
+function supplyAt(h) { let s = 0, sub = 50e8, left = h + 1; while (left > 0 && sub > 0) { const n = Math.min(left, HALVING); s += n * sub; left -= n; sub = Math.floor(sub / 2); } return s / 1e8; }
+const tip = () => (Array.isArray(V.d.blocks) && V.d.blocks[0]) || null;
+const shortDate = ms => new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase();
+const sinceText = s => { s = Math.max(0, Math.floor(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60, z = n => String(n).padStart(2, '0'); return h ? h + ':' + z(m) + ':' + z(x) : z(m) + ':' + z(x); };
+const SRC_MP = 'MEMPOOL.SPACE';
+const VITALS = {
+  height: { name: 'Block height', need: ['blocks'], view() { const b = tip(); if (!b) return null;
+    const pool = b.extras && b.extras.pool && b.extras.pool.name;
+    return { label: 'BLOCK HEIGHT', value: b.height, dec: 0, info: ['LAST BLOCK ' + Math.max(0, Math.round((Date.now() / 1000 - b.timestamp) / 60)) + ' MIN AGO', b.tx_count != null ? fmtPlain(b.tx_count, 0) + ' TXS' : '', pool ? 'MINED BY ' + String(pool).toUpperCase().slice(0, 18) : ''] }; } },
+  since: { name: 'Time since last block', need: ['blocks'], view() { const b = tip(); if (!b) return null;
+    const s = Date.now() / 1000 - b.timestamp, t = sinceText(s);
+    return { label: 'SINCE LAST BLOCK', text: t, alt: t, info: ['HEIGHT ' + fmtPlain(b.height, 0), 'TARGET 10:00'] }; } },
+  difficulty: { name: 'Difficulty', need: ['blocks', 'da'], view() { const b = tip(), da = V.d.da; if (!b) return null;
+    return { label: 'DIFFICULTY', value: b.difficulty, info: da ? ['NEXT ' + (da.difficultyChange >= 0 ? '+' : '') + da.difficultyChange.toFixed(2) + '%', 'IN ' + fmtPlain(da.remainingBlocks, 0) + ' BLOCKS'] : [] }; } },
+  nextadj: { name: 'Next difficulty adjustment (%)', need: ['da'], view() { const da = V.d.da; if (!da) return null;
+    return { label: 'NEXT DIFFICULTY ADJUSTMENT %', value: da.difficultyChange, dec: 2, dir: da.difficultyChange >= 0 ? 'up' : 'dn',
+      info: ['IN ' + fmtPlain(da.remainingBlocks, 0) + ' BLOCKS', '~' + shortDate(da.estimatedRetargetDate), 'PREVIOUS ' + (da.previousRetarget >= 0 ? '+' : '') + (+da.previousRetarget).toFixed(2) + '%'] }; } },
+  retarget: { name: 'Blocks until difficulty retarget', need: ['da'], view() { const da = V.d.da; if (!da) return null;
+    return { label: 'BLOCKS TO RETARGET', value: da.remainingBlocks, dec: 0, info: [(+da.progressPercent).toFixed(1) + '% THROUGH EPOCH', '~' + shortDate(da.estimatedRetargetDate)] }; } },
+  hashrate: { name: 'Network hashrate (EH/s)', need: ['hash'], view() { const h = V.d.hash; if (!h || !h.currentHashrate) return null;
+    return { label: 'HASHRATE EH/S', value: h.currentHashrate / 1e18, dec: 1, info: ['3-DAY AVERAGE', 'DIFFICULTY ' + fmtPlain(h.currentDifficulty)] }; } },
+  subsidy: { name: 'Block subsidy (BTC)', need: ['blocks'], view() { const b = tip(); if (!b) return null;
+    const paid = b.extras && b.extras.reward;
+    return { label: 'BLOCK SUBSIDY BTC', value: subsidyAt(b.height), dec: 3, info: ['HALVING EPOCH ' + (Math.floor(b.height / HALVING) + 1), paid ? 'LAST BLOCK PAID ' + (paid / 1e8).toFixed(4) + ' BTC WITH FEES' : ''] }; } },
+  halving: { name: 'Blocks until halving', need: ['blocks'], view() { const b = tip(); if (!b) return null;
+    const left = HALVING - b.height % HALVING;
+    return { label: 'BLOCKS TO HALVING', value: left, dec: 0, info: ['~' + new Date(Date.now() + left * 600000).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }).toUpperCase(), 'THEN ' + subsidyAt(b.height + left) + ' BTC PER BLOCK'] }; } },
+  supply: { name: 'Bitcoin supply issued', need: ['blocks'], view() { const b = tip(); if (!b) return null;
+    const s = supplyAt(b.height);
+    return { label: 'BTC ISSUED', value: s, dec: 0, info: [(s / 21e6 * 100).toFixed(3) + '% OF 21 MILLION', fmtPlain(21e6 - s, 0) + ' LEFT TO MINE'] }; } },
+  fees: { name: 'Fee rate (sat/vB)', need: ['fees'], view() { const f = V.d.fees; if (!f) return null;
+    return { label: 'NEXT-BLOCK FEE SAT/VB', value: f.fastestFee, dec: 0, info: ['30 MIN ' + f.halfHourFee, '1 HOUR ' + f.hourFee, 'ECONOMY ' + f.economyFee] }; } },
+  mempool: { name: 'Mempool transactions', need: ['mp'], view() { const m = V.d.mp; if (!m) return null;
+    return { label: 'MEMPOOL TRANSACTIONS', value: m.count, dec: 0, info: [(m.vsize / 1e6).toFixed(1) + ' MVB WAITING', '~' + Math.ceil(m.vsize / 1e6) + ' BLOCKS OF BACKLOG'] }; } },
+  mcap: { name: 'Bitcoin market cap (USD)', need: ['blocks'], view() { const b = tip(), l = legUSD(A.BTC, []); if (!b || !l) return null;
+    return { label: 'BTC MARKET CAP USD', value: supplyAt(b.height) * l.usd, prefix: '$', info: ['BTC $' + fmtPlain(l.usd), fmtPlain(supplyAt(b.height), 0) + ' BTC ISSUED'] }; } }
+};
+function vitalView(it) {
+  const d = VITALS[it.key]; if (!d) return { label: 'UNKNOWN', value: null, info: [] };
+  let v = null; try { v = d.view(); } catch (e) { v = null; }
+  if (!v) return { label: d.name.toUpperCase(), right: SRC_MP, value: null, info: [V.err ? SRC_MP + ' ' + V.err.toUpperCase() : 'WAITING FOR DATA'] };
+  v.right = SRC_MP; v.info = (v.info || []).filter(Boolean);
+  return v;
+}
+const viewOf = it => it.type === 'price' ? priceView(it) : it.type === 'clock' ? clockView(it) : vitalView(it);
+
+/* ================= glyph tables ================= */
+/* 7-segment: a top, b upper right, c lower right, d bottom, e lower left, f upper left, g middle */
+const SEG7 = { '0': 'abcdef', '1': 'bc', '2': 'abdeg', '3': 'abcdg', '4': 'bcfg', '5': 'acdfg', '6': 'acdefg', '7': 'abc', '8': 'abcdefg', '9': 'abcdfg',
+  '-': 'g', '_': 'd', '=': 'dg', A: 'abcefg', B: 'cdefg', C: 'adef', D: 'bcdeg', E: 'adefg', F: 'aefg', G: 'acdef', H: 'bcefg', I: 'ef', J: 'bcde',
+  L: 'def', N: 'ceg', O: 'abcdef', P: 'abefg', R: 'eg', S: 'acdfg', T: 'defg', U: 'bcdef', Y: 'bcdfg', '$': 'acdfg' };
+/* 14-segment, bit order: A B C D E F G1 G2 H J K L M N (H/K upper diagonals, L/N lower diagonals, J/M centre verticals) */
+const SEG14 = { '0': 0x0C3F, '1': 0x0406, '2': 0x00DB, '3': 0x008F, '4': 0x00E6, '5': 0x00ED, '6': 0x00FD, '7': 0x0007, '8': 0x00FF, '9': 0x00EF,
+  A: 0x00F7, B: 0x128F, C: 0x0039, D: 0x120F, E: 0x00F9, F: 0x0071, G: 0x00BD, H: 0x00F6, I: 0x1209, J: 0x001E, K: 0x2470, L: 0x0038, M: 0x0536,
+  N: 0x2136, O: 0x003F, P: 0x00F3, Q: 0x203F, R: 0x20F3, S: 0x00ED, T: 0x1201, U: 0x003E, V: 0x0C30, W: 0x2836, X: 0x2D00, Y: 0x1500, Z: 0x0C09,
+  '-': 0x00C0, '+': 0x12C0, '/': 0x0C00, '\\': 0x2100, '%': 0x0C24, '$': 0x12ED, '*': 0x3FC0, '_': 0x0008, '=': 0x00C8, '<': 0x2400, '>': 0x0900,
+  '(': 0x2400, ')': 0x0900, '?': 0x1083, '~': 0x00C0, '▲': 0x2800, '▼': 0x0500, "'": 0x0200, '&': 0x2359, '#': 0x12CE, '@': 0x02BB };
+/* 5x7 dot matrix, five column bytes per glyph, bit 0 = top row */
+const FONT5 = (() => {
+  const src = { ' ': '0000000000', '!': '00005F0000', '"': '0007000700', '#': '147F147F14', '$': '242A7F2A12', '%': '2313086462', '&': '3649552250', "'": '0005030000',
+    '(': '001C224100', ')': '0041221C00', '*': '14083E0814', '+': '08083E0808', ',': '0050300000', '-': '0808080808', '.': '0060600000', '/': '2010080402',
+    '0': '3E5149453E', '1': '00427F4000', '2': '4261514946', '3': '2141454B31', '4': '1814127F10', '5': '2745454539', '6': '3C4A494930', '7': '0171090503',
+    '8': '3649494936', '9': '064949291E', ':': '0036360000', ';': '0056360000', '<': '0814224100', '=': '1414141414', '>': '0041221408', '?': '0201510906',
+    '@': '324979413E', A: '7E1111117E', B: '7F49494936', C: '3E41414122', D: '7F4141221C', E: '7F49494941', F: '7F09090901', G: '3E4149497A', H: '7F0808087F',
+    I: '00417F4100', J: '2040413F01', K: '7F08142241', L: '7F40404040', M: '7F020C027F', N: '7F0408107F', O: '3E4141413E', P: '7F09090906', Q: '3E4151215E',
+    R: '7F09192946', S: '4649494931', T: '01017F0101', U: '3F4040403F', V: '1F2040201F', W: '3F4038403F', X: '6314081463', Y: '0708700807', Z: '6151494543',
+    '_': '4040404040', '~': '0804080408', '▲': '10181C1810', '▼': '040C1C0C04', '\\': '0204081020' };
+  const o = {}; for (const k in src) o[k] = src[k].match(/../g).map(h => parseInt(h, 16)); return o;
+})();
+/* single-stroke numerals in a 60x100 box, used by the Nixie, neon and edge-lit themes */
+const STROKE = {
+  '0': 'M30 10C14 10 10 30 10 50C10 70 14 90 30 90C46 90 50 70 50 50C50 30 46 10 30 10Z',
+  '1': 'M17 27L33 10L33 90',
+  '2': 'M11 30C11 17 19 10 30 10C41 10 49 18 49 30C49 45 34 55 10 90L50 90',
+  '3': 'M12 22C15 14 22 10 30 10C41 10 48 18 48 29C48 40 40 47 27 48C42 49 50 57 50 69C50 81 42 90 30 90C21 90 14 85 10 76',
+  '4': 'M39 90L39 10L8 66L52 66',
+  '5': 'M47 10L16 10L12 46C17 41 23 39 30 39C42 39 50 49 50 64C50 79 42 90 29 90C20 90 13 85 10 77',
+  '6': 'M45 14C41 11 37 10 32 10C17 10 10 28 10 55C10 78 17 90 30 90C42 90 50 80 50 66C50 52 42 43 30 43C19 43 11 52 10 62',
+  '7': 'M10 10L50 10L24 90',
+  '8': 'M30 47C19 47 13 39 13 29C13 18 20 10 30 10C40 10 47 18 47 29C47 39 41 47 30 47C17 47 10 56 10 68C10 81 18 90 30 90C42 90 50 81 50 68C50 56 43 47 30 47Z',
+  '9': 'M15 86C19 89 23 90 28 90C43 90 50 72 50 45C50 22 43 10 30 10C18 10 10 20 10 34C10 48 18 57 30 57C41 57 49 48 50 38',
+  '-': 'M14 50L46 50',
+  '$': 'M30 3V97M46 24C46 12 36 8 28 8C16 8 10 16 10 26C10 38 20 44 32 50C46 56 52 64 52 76C52 88 42 94 28 94C14 94 8 84 8 74'
+};
+
+/* ================= themes ================= */
+const THEME = {};
+[
+  { id: 'flip', name: 'Split-flap cards', eng: 'flip', alpha: 1, attach: 0, acc: [['White', '#f3f1ea'], ['Amber', '#ffc53d'], ['Mint', '#b6f2cf']] },
+  { id: 'nixie', name: 'Nixie tubes', eng: 'stroke', alpha: 0, attach: 1, wires: 1, below: 1, acc: [['Neon orange', '#ff7a1a'], ['Deep red', '#ff4a12']] },
+  { id: 'eink', name: 'Blockclock style', eng: 'eink', alpha: 0, attach: 1, acc: [['Paper', '#e9e7de'], ['Night', '#17181b']] },
+  { id: 'led', name: '7-segment LED', eng: 'seg7', alpha: 0, attach: 1, acc: [['Red', '#ff2b1c'], ['Green', '#3dff5f'], ['Amber', '#ffae00'], ['Blue', '#3fa4ff'], ['White', '#eef3ff']] },
+  { id: 'vfd', name: 'Vacuum fluorescent', eng: 'seg14', alpha: 1, attach: 1, acc: [['Teal', '#6dffe0'], ['Ice blue', '#8fd6ff'], ['Green', '#8dff9c']] },
+  { id: 'dots', name: 'Dot-matrix LED', eng: 'dot', alpha: 1, attach: 0, acc: [['Red', '#ff3a26'], ['Amber', '#ffab1f'], ['Green', '#58ff58'], ['Blue', '#55acff']] },
+  { id: 'lcd', name: 'Calculator LCD', eng: 'seg7', alpha: 0, attach: 1, acc: [['Grey-green', '#a4ad94'], ['Amber backlight', '#e3b253'], ['Blue backlight', '#86b9e6']] },
+  { id: 'flipdot', name: 'Flip-dot board', eng: 'dot', alpha: 1, attach: 0, flipdot: 1, acc: [['Yellow', '#f0e23a'], ['White', '#f4f3ee'], ['Lime', '#a5e24c']] },
+  { id: 'crt', name: 'CRT terminal', eng: 'dot', alpha: 1, attach: 0, sq: 1, acc: [['Green phosphor', '#46ff80'], ['Amber phosphor', '#ffb23f'], ['White phosphor', '#dfe8ff']] },
+  { id: 'odo', name: 'Odometer wheels', eng: 'odo', alpha: 0, attach: 1, fitW: .96, wxBare: 1, acc: [['White', '#f2f0e6'], ['Orange', '#ff8f2e'], ['Green', '#46e05a'], ['Blue', '#4c97ff'], ['Cyan', '#3ad8f0'], ['Magenta', '#f048c8'], ['Yellow', '#ffe14a']] },
+  { id: 'bulbs', name: 'Scoreboard bulbs', eng: 'dot', alpha: 1, attach: 0, acc: [['Warm white', '#ffd98a'], ['Cool white', '#fff7e6'], ['Red', '#ff5a3c']] },
+  { id: 'neon', name: 'Neon sign', eng: 'stroke', alpha: 0, attach: 1, acc: [['Pink', '#ff3fa7'], ['Blue', '#3cc3ff'], ['Red', '#ff4136'], ['Green', '#4dff8b']] },
+  { id: 'numi', name: 'Numitron filaments', eng: 'seg7', alpha: 0, attach: 1, line: 1, below: 1, acc: [['Warm', '#ffcc85'], ['Hot white', '#fff0d6']] },
+  { id: 'edge', name: 'Edge-lit acrylic', eng: 'stroke', alpha: 0, attach: 1, wires: 1, below: 1, acc: [['Cyan', '#63e9ff'], ['Orange', '#ff9b40'], ['Violet', '#b792ff'], ['Green', '#70ff9d']] }
+].forEach(t => THEME[t.id] = t);
+
+/* ================= cell engines ================= */
+const hseg = (x1, x2, y, h) => `${x1 + h},${y - h} ${x2 - h},${y - h} ${x2},${y} ${x2 - h},${y + h} ${x1 + h},${y + h} ${x1},${y}`;
+const vseg = (x, y1, y2, h) => `${x - h},${y1 + h} ${x},${y1} ${x + h},${y1 + h} ${x + h},${y2 - h} ${x},${y2} ${x - h},${y2 - h}`;
+const segMarks = (x, yb) => `<circle class="s" data-k="dot" cx="${x}" cy="${yb}" r="4.4"/><polygon class="s" data-k="tail" points="${x - 3},${yb + 2} ${x + 3.8},${yb + 1.5} ${x - 2.6},${yb + 12}"/>` +
+  `<circle class="s" data-k="c1" cx="${x}" cy="36" r="4.3"/><circle class="s" data-k="c2" cx="${x}" cy="70" r="4.3"/>`;
+const SEG_HTML = {};
+function seg7Html(line) {
+  const L = 11, R = 45, T = 11, M = 53, B = 95, h = 5, g = 1.3;
+  const P = { a: hseg(L + g, R - g, T, h), b: vseg(R, T + g, M - g, h), c: vseg(R, M + g, B - g, h), d: hseg(L + g, R - g, B, h), e: vseg(L, M + g, B - g, h), f: vseg(L, T + g, M - g, h), g: hseg(L + g, R - g, M, h) };
+  const N = { a: [L + 5, T, R - 5, T], b: [R, T + 5, R, M - 5], c: [R, M + 5, R, B - 5], d: [L + 5, B, R - 5, B], e: [L, M + 5, L, B - 5], f: [L, T + 5, L, M - 5], g: [L + 5, M, R - 5, M] };
+  let s = '';
+  for (const k of 'abcdefg') s += line ? `<line class="s l" data-k="${k}" x1="${N[k][0]}" y1="${N[k][1]}" x2="${N[k][2]}" y2="${N[k][3]}"/>` : `<polygon class="s" data-k="${k}" points="${P[k]}"/>`;
+  return twoLayer(s, 57, 95);
+}
+function seg14Html() {
+  const L = 9, R = 47, C = 28, T = 11, M = 53, B = 95, h = 4, g = 1.2;
+  const poly = [hseg(L + g, R - g, T, h), vseg(R, T + g, M - g, h), vseg(R, M + g, B - g, h), hseg(L + g, R - g, B, h), vseg(L, M + g, B - g, h), vseg(L, T + g, M - g, h), hseg(L + g, C - .6, M, h), hseg(C + .6, R - g, M, h)];
+  const lines = { 8: [L + 6.5, T + 7.5, C - 5, M - 6.5], 10: [R - 6.5, T + 7.5, C + 5, M - 6.5], 11: [C - 5, M + 6.5, L + 6.5, B - 7.5], 13: [C + 5, M + 6.5, R - 6.5, B - 7.5] };
+  let s = poly.map((p, i) => `<polygon class="s" data-k="${i}" points="${p}"/>`).join('');
+  s += `<polygon class="s" data-k="9" points="${vseg(C, T + 5.5, M - 1.5, 3.4)}"/><polygon class="s" data-k="12" points="${vseg(C, M + 1.5, B - 5.5, 3.4)}"/>`;
+  for (const k in lines) s += `<line class="s l" data-k="${k}" x1="${lines[k][0]}" y1="${lines[k][1]}" x2="${lines[k][2]}" y2="${lines[k][3]}"/>`;
+  return twoLayer(s, 57, 95);
+}
+function twoLayer(segs, mx, my) {
+  const vb = 'viewBox="0 0 64 108" preserveAspectRatio="none"';
+  return `<svg class="ghost" ${vb}>${segs}<circle class="s" cx="${mx}" cy="${my}" r="4.4"/></svg><svg class="lit" ${vb}>${segs}${segMarks(mx, my)}</svg>`;
+}
+function dotHtml(sq) {
+  let s = '';
+  for (let c = 0; c < 5; c++) for (let r = 0; r < 7; r++) s += sq ? `<rect class="d" x="${c * 10}" y="${r * 10}" width="10.4" height="9"/>` : `<circle class="d" cx="${c * 10 + 5}" cy="${r * 10 + 5}" r="4"/>`;
+  return `<svg class="lit" viewBox="0 0 50 70" preserveAspectRatio="none">${s}</svg>`;
+}
+const STROKE_WIRES = `<svg class="wires" viewBox="0 0 70 100">${'6935274180'.split('').map((d, i) => `<path d="${STROKE[d]}" transform="translate(${(i % 3 - 1) * .8} ${(i % 2) * .6})"/>`).join('')}</svg>`;
+const STROKE_LIT = '<svg class="lit" viewBox="0 0 70 100"><path class="g"/><path class="c"/>' +
+  '<path class="g mk" data-k="dot" d="M63 89h.01"/><path class="g mk" data-k="tail" d="M63 89L60 98"/><path class="g mk" data-k="c1" d="M63 36h.01"/><path class="g mk" data-k="c2" d="M63 66h.01"/></svg>';
+const ODO = '0123456789 -$';
+
+let AC = null, lastTick = 0;
+function tick() {
+  if (!state.sound) return;
+  const now = performance.now(); if (now - lastTick < 28) return; lastTick = now;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    const n = Math.floor(AC.sampleRate * .03), buf = AC.createBuffer(1, n, AC.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3);
+    const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+    s.buffer = buf; f.type = 'bandpass'; f.frequency.value = 1700 + Math.random() * 700; g.gain.value = .14;
+    s.connect(f); f.connect(g); g.connect(AC.destination); s.start();
+  } catch (e) { /* audio not available */ }
+}
+
+function flipStep(c, ch, D) {
+  const [t, b, ft, fb] = c._h, F = ft.parentNode, G = fb.parentNode;
+  ft.textContent = c._ch; fb.textContent = ch; t.textContent = ch;
+  F.style.visibility = G.style.visibility = 'visible'; tick();
+  const a1 = F.animate([{ transform: 'rotateX(0deg)', filter: 'brightness(1)' }, { transform: 'rotateX(-90deg)', filter: 'brightness(.45)' }], { duration: D, easing: 'ease-in', fill: 'forwards' });
+  const a2 = G.animate([{ transform: 'rotateX(90deg)', filter: 'brightness(1.6)' }, { transform: 'rotateX(0deg)', filter: 'brightness(1)' }], { duration: D, delay: D, easing: 'ease-out', fill: 'both' });
+  return a2.finished.then(() => { b.textContent = ch; c._ch = ch; F.style.visibility = G.style.visibility = 'hidden'; a1.cancel(); a2.cancel(); });
+}
+async function flipRun(c) {
+  try {
+    while (c._ch !== c._tg && c.isConnected) {
+      let nx = c._tg;
+      /* big cards pass through one or two flaps on the way, like a real drum; a clock ticking 4 to 5 flips once */
+      if (!c._small && c._hops < 2) {
+        const from = c._ch, to = c._tg, isD = x => x >= '0' && x <= '9', isL = x => x >= 'A' && x <= 'Z';
+        let cand = null;
+        if (isD(from) && isD(to)) { if (c._hops === 0 && Math.abs(from - to) > 1 && !(from === '9' && to === '0')) cand = String(Math.round((+from + +to) / 2)); }
+        else if (isL(from) || isL(to)) cand = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)];
+        if (cand && cand !== from && cand !== to) nx = cand;
+        c._hops++;
+      }
+      await flipStep(c, nx, nx === c._tg ? 105 : 60);
+    }
+  } catch (e) { /* cell was removed mid-flip */ }
+  c._run = false;
+}
+
+const ENG = {
+  seg7: {
+    make(th) { const c = mk('span', 'cell seg'); c.innerHTML = SEG_HTML[th.line ? 'line' : 'poly'] || (SEG_HTML[th.line ? 'line' : 'poly'] = seg7Html(th.line)); c._s = [...c.querySelectorAll('.lit .s')].map(e => [e.dataset.k, e]); return c; },
+    set(c, ch, mark) { const on = SEG7[ch.toUpperCase()] || ''; segSet(c, mark, k => on.includes(k)); }
+  },
+  seg14: {
+    make() { const c = mk('span', 'cell seg'); c.innerHTML = SEG_HTML.s14 || (SEG_HTML.s14 = seg14Html()); c._s = [...c.querySelectorAll('.lit .s')].map(e => [e.dataset.k, e]); return c; },
+    set(c, ch, mark) { const code = SEG14[ch.toUpperCase()] || 0; segSet(c, mark, k => (code >> +k) & 1); }
+  },
+  dot: {
+    make(th) { const c = mk('span', 'cell dot'); const k = th.sq ? 'sq' : 'rd'; c.innerHTML = SEG_HTML[k] || (SEG_HTML[k] = dotHtml(th.sq)); c._d = [...c.querySelectorAll('.d')]; return c; },
+    set(c, ch, mark, i, first, th) {
+      const g = FONT5[ch] || FONT5[ch.toUpperCase()] || FONT5[' '], d = c._d;
+      let changed = false;
+      for (let col = 0; col < 5; col++) for (let r = 0; r < 7; r++) {
+        const e = d[col * 7 + r], v = !!((g[col] >> r) & 1);
+        if (!!e._on === v) continue;
+        e._on = v; changed = true;
+        if (th.flipdot && !first) { const dl = Math.random() * .22; e.style.animationDelay = dl + 's'; e.style.transitionDelay = (dl + .07) + 's'; if (e.classList.contains('fa')) e.classList.replace('fa', 'fb'); else { e.classList.remove('fb'); e.classList.add('fa'); } }
+        e.classList.toggle('on', v);
+      }
+      if (changed && th.flipdot && !first) tick();
+    }
+  },
+  stroke: {
+    make(th) {
+      const c = mk('span', 'cell st');
+      c.innerHTML = `<span class="glass">${th.wires ? STROKE_WIRES : ''}<i class="mesh"></i>${STROKE_LIT}<i class="shine"></i></span><i class="base"></i>`;
+      c._lit = c.querySelector('.lit'); c._g = c.querySelector('.lit .g'); c._c = c.querySelector('.lit .c');
+      c._m = {}; c.querySelectorAll('.mk').forEach(e => c._m[e.dataset.k] = e);
+      return c;
+    },
+    set(c, ch, mark, i, first) {
+      const d = STROKE[ch] || '';
+      c._g.setAttribute('d', d); c._c.setAttribute('d', d);
+      c._m.dot.style.display = mark === '.' || mark === ',' ? '' : 'none';
+      c._m.tail.style.display = mark === ',' ? '' : 'none';
+      c._m.c1.style.display = c._m.c2.style.display = mark === ':' ? '' : 'none';
+      c.classList.toggle('lit-on', !!d);
+      if (!first && c._lit.animate) c._lit.animate([{ opacity: .1 }, { opacity: 1, offset: .5 }, { opacity: .6, offset: .7 }, { opacity: 1 }], { duration: 170 });
+    }
+  },
+  flip: {
+    make(th, kind) {
+      const c = mk('span', 'cell flip');
+      c.innerHTML = '<b class="h top"><i></i></b><b class="h bot"><i></i></b><b class="h ftop"><i></i></b><b class="h fbot"><i></i></b>';
+      c._h = [...c.children].map(b => b.firstChild); c._ch = c._tg = ' '; c._small = kind === 'small'; return c;
+    },
+    set(c, ch, mark, i, first) {
+      ch = ch.toUpperCase();
+      if (first || !c.animate) { c._ch = c._tg = ch; c._h[0].textContent = c._h[1].textContent = ch; return; }
+      c._tg = ch;
+      if (!c._run) { c._run = true; c._hops = 0; setTimeout(() => flipRun(c), i * (c._small ? 10 : 45)); }
+    }
+  },
+  odo: {
+    make() {
+      const c = mk('span', 'cell odo'), s = mk('span', 'strip');
+      for (const ch of ODO) { const b = mk('b'); b.appendChild(mk('i', '', ch)); s.appendChild(b); }
+      c.appendChild(s); c.appendChild(mk('u', 'mk')); c._strip = s; return c;
+    },
+    set(c, ch, mark, i, first) {
+      let k = ODO.indexOf(ch); if (k < 0) k = 10;
+      if (first) { c._strip.style.transition = 'none'; requestAnimationFrame(() => requestAnimationFrame(() => { c._strip.style.transition = ''; })); }
+      else c._strip.style.transitionDelay = (i * .03) + 's';
+      c._strip.style.transform = 'translateY(' + (-k) + 'em)';
+      c.lastChild.textContent = mark === ':' ? ':' : mark; c.lastChild.className = 'mk' + (mark === ':' ? ' col' : '');
+    }
+  },
+  eink: {
+    make(th, kind, i) { const c = mk('span', 'cell ek' + (i === 0 ? ' tag' : '')); c.append(mk('i', 'cap'), mk('b', 'ch'), mk('u', 'mk')); return c; },
+    set(c, ch, mark, i, first) {
+      c.children[1].textContent = ch === ' ' ? '' : ch; c.children[2].textContent = mark;
+      if (!first && c.animate) c.animate([{ filter: 'invert(1)' }, { filter: 'invert(1)', offset: .45 }, { filter: 'invert(0)' }], { duration: 300, delay: i * 25, easing: 'steps(3)' });
+    }
+  }
+};
+function segSet(c, mark, test) {
+  for (const [k, e] of c._s) {
+    const v = k === 'dot' ? (mark === '.' || mark === ',') : k === 'tail' ? mark === ',' : (k === 'c1' || k === 'c2') ? mark === ':' : !!test(k);
+    e.classList.toggle('on', v);
+  }
+}
+
+/* ================= layout ================= */
+const BLANK = { ch: ' ', mark: '' };
+function tokens(str, attach) {
+  const out = [];
+  for (const ch of String(str)) {
+    if (attach && '.,:'.includes(ch)) { const p = out[out.length - 1]; if (p && !p.mark) { p.mark = ch; continue; } out.push({ ch: ' ', mark: ch }); continue; }
+    out.push({ ch, mark: '' });
+  }
+  return out;
+}
+function place(toks, n, align) {
+  if (toks.length > n) toks = toks.slice(0, n);
+  const pad = n - toks.length, left = align === 'left' ? 0 : align === 'right' ? pad : Math.floor(pad / 2), out = [];
+  for (let i = 0; i < n; i++) out.push(toks[i - left] || BLANK);
+  return out;
+}
+function between(l, r, n) {
+  if (l.length > n) return l.slice(0, n);
+  if (!r || l.length + r.length + 1 > n) return l;
+  return l + ' '.repeat(n - l.length - r.length) + r;
+}
+const segText = s => (typeof s === 'string' ? s : s.t);
+function fitSegs(segs, n) {
+  let out = '';
+  for (const s of segs) { const t = segText(s), next = out ? out + '  ' + t : t; if (next.length > n) { if (!out) out = t.slice(0, n); break; } out = next; }
+  return out;
+}
+
+const Disp = {
+  th: null, v: null,
+  build() {
+    const th = this.th = THEME[state.theme] || THEME.flip, st = $('#stage'), dev = $('#device'), E = ENG[th.eng], N = state.cells;
+    const acc = th.acc[state.accent[th.id] || 0] || th.acc[0];
+    const layout = state.layout === 'right' ? 'right' : 'below';
+    st.className = 't-' + th.id + ' a-' + (state.accent[th.id] || 0) + ' layout-' + layout;
+    st.style.setProperty('--on', acc[1]);
+    dev.textContent = '';
+    const row = (cls, n, kind) => { const el = mk('div', 'row ' + cls), cells = []; for (let i = 0; i < n; i++) { const c = E.make(th, kind, i); el.appendChild(c); cells.push(c); } return { el, cells, cur: new Array(n).fill(null) }; };
+    this.main = row('main', N, 'main'); this.lab = this.inf = this.pl = null;
+    if (th.alpha) {
+      this.lab = row('label', Math.floor(N / .42), 'small'); this.inf = row('info', Math.floor(N / .3), 'small');
+      dev.append(this.lab.el, this.main.el, this.inf.el);
+      this.inf.el.style.display = state.info ? '' : 'none';
+    } else {
+      const top = mk('div', 'pl-top'), bot = mk('div', 'pl-bot'), lp = mk('div', 'prow plabel'), ip = mk('div', 'prow pinfo');
+      const l = mk('span', 'l'), r = mk('span', 'r'); lp.append(l, r);
+      (th.below ? bot : top).append(lp); bot.append(ip);
+      if (th.eng === 'eink') top.style.display = 'none';
+      ip.style.display = state.info && th.eng !== 'eink' ? '' : 'none';
+      dev.append(top, this.main.el, bot);
+      this.pl = { l, r, ip, key: '' };
+    }
+    this.first = true; this.fit();
+    if (this.v) this.show(this.v);
+  },
+  fit() {
+    const dev = $('#device'), st = $('#stage'), pane = $('#modTicker') || st;
+    const open = document.body.classList.contains('open') && innerWidth > 760;
+    st.style.right = open ? $('#panel').offsetWidth + 'px' : '0';
+    dev.style.fontSize = '100px';
+    const r = dev.getBoundingClientRect(), W = pane.clientWidth;
+    /* Stacked layout: ticker pane is auto-height (top-aligned), so size against stage budget, not pane. */
+    let H = pane.clientHeight;
+    if (state.layout !== 'right') H = Math.max(140, st.clientHeight * .48);
+    else if (!H) H = st.clientHeight;
+    if (!r.width || !r.height || !W || !H) return;
+    const widthFit = (this.th && this.th.fitW) || .92;
+    dev.style.fontSize = Math.max(8, 100 * Math.min(W * widthFit / r.width, H * .82 / r.height)) + 'px';
+    this.fitWeather();
+  },
+  fitWeather() {
+    const panel = $('#wxPanel'), fit = $('#wxFit'), device = $('#device');
+    if (!panel || !fit || panel.offsetParent === null) return;
+    const right = state.layout === 'right';
+    const bare = !!(this.th && this.th.wxBare);
+    if (device && bare) {
+      /* Bezel-less weather (e.g. odometer): no panel chrome, no header — just the chiclets spanning the
+         full ticker width, floating directly under the ticker. */
+      panel.style.backgroundColor = 'transparent';
+      panel.style.backgroundImage = 'none';
+      panel.style.borderRadius = '0';
+      panel.style.boxShadow = 'none';
+      panel.style.border = '0';
+      panel.style.paddingTop = '0';
+      panel.style.paddingRight = '0';
+      panel.style.paddingBottom = '0';
+      panel.style.paddingLeft = '0';
+      panel.style.width = right ? '' : Math.round(device.getBoundingClientRect().width) + 'px';
+      panel.style.setProperty('--wx-base', parseFloat(getComputedStyle(device).fontSize) + 'px');
+      panel.style.removeProperty('--wx-head-size');
+      const head = panel.querySelector('.wx-head');
+      if (head) ['fontFamily', 'fontWeight', 'fontStyle', 'letterSpacing', 'textTransform'].forEach(k => head.style[k] = '');
+    }
+    /* Mirror the ticker's bezel exactly: copy the device's computed chrome so outline, radius, background and inset match for every theme. */
+    if (device && !bare) {
+      const d = getComputedStyle(device);
+      panel.style.backgroundColor = d.backgroundColor;
+      panel.style.backgroundImage = d.backgroundImage;
+      panel.style.borderRadius = d.borderRadius;
+      panel.style.boxShadow = d.boxShadow;
+      panel.style.border = d.border;
+      panel.style.paddingTop = d.paddingTop;
+      panel.style.paddingRight = d.paddingRight;
+      panel.style.paddingBottom = d.paddingBottom;
+      panel.style.paddingLeft = d.paddingLeft;
+      panel.style.width = right ? '' : Math.round(device.getBoundingClientRect().width) + 'px';
+      /* Base unit = the ticker's digit font size; internal rhythm scales from it so the bezel matches the ticker. */
+      panel.style.setProperty('--wx-base', parseFloat(d.fontSize) + 'px');
+      /* Match the header to whatever the ticker actually renders as its bezel label in this theme
+         (attach themes: a small plaque label; flip: a glyph flap; dot/segment themes: a cell row),
+         mirroring its real size AND text style so the font, weight, spacing and colour all line up. */
+      const vis = el => el && el.offsetParent !== null && el.getBoundingClientRect().height > 0;
+      const pl = device.querySelector('.prow.plabel'), labRow = device.querySelector('.row.label');
+      const labGlyph = labRow && labRow.querySelector('i');
+      let headPx = 0, styleEl = null;
+      if (vis(pl)) { headPx = parseFloat(getComputedStyle(pl).fontSize); styleEl = pl; }
+      else if (labGlyph && vis(labRow)) { headPx = parseFloat(getComputedStyle(labGlyph).fontSize); styleEl = labGlyph; }
+      else if (vis(labRow)) { headPx = labRow.getBoundingClientRect().height * .72; styleEl = labRow; }
+      const head = panel.querySelector('.wx-head');
+      if (headPx) panel.style.setProperty('--wx-head-size', headPx + 'px');
+      else panel.style.removeProperty('--wx-head-size');
+      /* Mirror the label's typography (family, weight, spacing, case) so the header reads like the ticker's
+         bezel label, but keep colour from the theme's own --wx-text/plaque tokens: the weather bezel surface
+         can differ from the ticker label's surface (e.g. LCD's dark bezel vs its green screen), so the
+         token already carries the correct, readable colour for each theme. */
+      const typo = ['fontFamily', 'fontWeight', 'fontStyle', 'letterSpacing', 'textTransform'];
+      if (head && styleEl) {
+        const L = getComputedStyle(styleEl);
+        typo.forEach(k => head.style[k] = L[k]);
+      } else if (head) {
+        typo.forEach(k => head.style[k] = '');
+      }
+    }
+    fit.style.transform = 'none';
+    panel.style.height = '';
+    const cs = getComputedStyle(panel);
+    const padL = parseFloat(cs.paddingLeft), padR = parseFloat(cs.paddingRight), padT = parseFloat(cs.paddingTop), padB = parseFloat(cs.paddingBottom);
+    const availW = panel.clientWidth - padL - padR;
+    let availH;
+    if (right) {
+      availH = panel.clientHeight - padT - padB;
+    } else {
+      /* Below layout: budget is the stage minus the (auto-height) ticker, so the panel can hug its content like the ticker bezel. */
+      const st = $('#stage'), ticker = $('#modTicker'), modW = $('#modWeather');
+      const modPadB = parseFloat(getComputedStyle(modW).paddingBottom) || 0;
+      availH = st.clientHeight - ticker.getBoundingClientRect().height - modPadB - 8 - padT - padB;
+    }
+    const natW = fit.scrollWidth, natH = fit.scrollHeight;
+    if (!availW || availH <= 0 || !natW || !natH) return;
+    const s = Math.max(.06, Math.min(availW / natW, availH / natH, 2.4));
+    const scaledW = natW * s, scaledH = natH * s;
+    const tx = Math.max(0, (availW - scaledW) / 2);
+    fit.style.transform = 'translateX(' + tx + 'px) scale(' + s + ')';
+    panel.style.height = right ? '' : (scaledH + padT + padB) + 'px';
+  },
+  setRow(row, toks, off) {
+    const th = this.th, E = ENG[th.eng], first = this.first; off = off || 0;
+    for (let i = 0; i < toks.length; i++) {
+      const t = toks[i], k = t.ch + t.mark, j = i + off;
+      if (row.cur[j] !== k) { row.cur[j] = k; E.set(row.cells[j], t.ch, t.mark, i, first, th); }
+    }
+  },
+  show(v) {
+    this.v = v; const th = this.th, N = state.cells, eink = th.eng === 'eink', cap = eink ? N - 1 : N;
+    let txt, mult = '';
+    if (v.text != null) { txt = v.text; if (tokens(txt, th.attach).length > cap && v.alt) txt = v.alt; }
+    else if (v.value == null) txt = '----';
+    else {
+      const pre = v.prefix || '';
+      ({ text: txt, mult } = fmtNum(v.value, Math.max(1, cap - pre.length), th.attach, v.dec));
+      if (pre && txt !== '----') txt = txt.charAt(0) === '-' ? '-' + pre + txt.slice(1) : pre + txt;
+    }
+    const label = (v.label || '') + (mult ? ' (' + MULT[mult] + ')' : ''), right = v.right || '', info = (v.info || []).filter(Boolean);
+    $('#stage').dataset.dir = v.dir || '';
+    /* numbers sit against the right edge so their size is comparable from one entry to the next; clocks stay centred */
+    this.setRow(this.main, place(tokens(txt, th.attach), cap, v.text != null ? 'center' : 'right'), eink ? 1 : 0);
+    if (th.alpha) {
+      this.setRow(this.lab, place(tokens(between(label, right, this.lab.cells.length).toUpperCase(), th.attach), this.lab.cells.length, 'left'));
+      if (state.info) this.setRow(this.inf, place(tokens(fitSegs(info, th.attach ? this.inf.cells.length + 4 : this.inf.cells.length).toUpperCase(), th.attach), this.inf.cells.length, 'center'));
+    } else if (eink) this.einkExtras(label, right, info);
+    else {
+      const p = this.pl, key = label + '|' + right + '|' + info.map(segText).join('|');
+      if (p.key !== key) {
+        p.key = key; p.l.textContent = label; p.r.textContent = right; p.ip.textContent = '';
+        info.forEach(s => p.ip.appendChild(mk('span', typeof s === 'string' ? '' : s.c, segText(s))));
+        /* keep the most important items when the plate is too narrow for all of them */
+        while (p.ip.children.length > 1 && p.ip.scrollWidth > p.ip.clientWidth + 1) p.ip.lastChild.remove();
+      }
+    }
+    this.first = false;
+  },
+  /* Blockclock style: the first cell carries the stacked label, small captions sit above the digits. */
+  einkExtras(label, right, info) {
+    const cells = this.main.cells, tag = cells[0], key = label + '|' + right + '|' + info.map(segText).join('|') + '|' + state.info;
+    if (this.ekKey === key && !this.first) return; this.ekKey = key;
+    const ch = tag.children[1]; ch.textContent = '';
+    const parts = label.includes('/') && label.length < 26 ? label.split('/') : wrapWords(label, 9, 4);
+    parts.forEach((p, i) => { if (i && label.includes('/') && label.length < 26) ch.appendChild(mk('hr')); ch.appendChild(mk('span', '', p.trim())); });
+    ch.style.fontSize = Math.min(.165, 1.0 / Math.max(1, ...parts.map(x => x.trim().length))) + 'em';
+    tag.children[0].textContent = '';
+    const caps = state.info ? [right, ...info.map(segText)].filter(Boolean) : [right];
+    for (let i = 1; i < cells.length; i++) cells[i].children[0].textContent = (caps[i - 1] || '').slice(0, 30);
+  }
+};
+function wrapWords(s, w, max) {
+  const out = []; let cur = '';
+  for (const word of s.split(' ')) { if (cur && (cur + ' ' + word).length > w) { out.push(cur); cur = word; } else cur = cur ? cur + ' ' + word : word; }
+  if (cur) out.push(cur);
+  return out.slice(0, max);
+}
+
+/* ================= weather module (Open-Meteo) ================= */
+const WX = {
+  data: null, day: 0, busy: false, err: '', next: 0, okAt: 0, fail: 0,
+  every: 20 * 60000, returnT: 0
+};
+
+/* After the user views a day other than Today, drift back to Today once the configured delay elapses. */
+function scheduleWxReturn() {
+  clearTimeout(WX.returnT);
+  const delay = Math.max(0, +state.weatherReturn || 0);
+  if (WX.day !== 0 && delay > 0) {
+    WX.returnT = setTimeout(() => { WX.day = 0; renderWeather(); }, delay * 1000);
+  }
+}
+
+const WX_ICON = {
+  0: 'sun', 1: 'sun', 2: 'cloud-sun', 3: 'cloud',
+  45: 'fog', 48: 'fog',
+  51: 'rain', 53: 'rain', 55: 'rain', 56: 'rain', 57: 'rain',
+  61: 'rain', 63: 'rain', 65: 'rain', 66: 'rain', 67: 'rain',
+  71: 'snow', 73: 'snow', 75: 'snow', 77: 'snow',
+  80: 'rain', 81: 'rain', 82: 'rain',
+  85: 'snow', 86: 'snow',
+  95: 'storm', 96: 'storm', 99: 'storm'
+};
+
+function wxSvg(kind) {
+  const stroke = 'currentColor', fill = 'none';
+  const common = `fill="${fill}" stroke="${stroke}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"`;
+  if (kind === 'sun') return `<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="6" ${common}/><path d="M16 3v4M16 25v4M3 16h4M25 16h4M7 7l3 3M22 22l3 3M7 25l3-3M22 10l3-3" ${common}/></svg>`;
+  if (kind === 'cloud-sun') return `<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="11" cy="12" r="4.5" ${common}/><path d="M11 3v2.5M3 12h2.5M6 6l1.8 1.8M6 18l1.8-1.8"/><path d="M12 22h10a5 5 0 0 0 0-10 6.5 6.5 0 0 0-12.4 2.2A4.5 4.5 0 0 0 12 22z" ${common}/></svg>`;
+  if (kind === 'fog') return `<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M8 12h16M6 16h20M9 20h14" ${common}/></svg>`;
+  if (kind === 'rain') return `<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M10 16h12a5 5 0 0 0 0-10 6.5 6.5 0 0 0-12.5 2.3A4.5 4.5 0 0 0 10 16z" ${common}/><path d="M12 20l-1.5 4M16 20l-1.5 4M20 20l-1.5 4" ${common}/></svg>`;
+  if (kind === 'snow') return `<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M10 15h12a5 5 0 0 0 0-10 6.5 6.5 0 0 0-12.5 2.3A4.5 4.5 0 0 0 10 15z" ${common}/><path d="M12 20v4M16 19v5M20 20v4M11 22h2M15 21h2M19 22h2" ${common}/></svg>`;
+  if (kind === 'storm') return `<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M10 15h12a5 5 0 0 0 0-10 6.5 6.5 0 0 0-12.5 2.3A4.5 4.5 0 0 0 10 15z" ${common}/><path d="M15 17l-3 6h4l-2 5 7-8h-4l3-3z" ${common}/></svg>`;
+  return `<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M10 20h12a5 5 0 0 0 0-10 6.5 6.5 0 0 0-12.5 2.3A4.5 4.5 0 0 0 10 20z" ${common}/></svg>`;
+}
+
+const COMPASS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+function windDir(deg) {
+  if (deg == null || !isFinite(deg)) return '';
+  return COMPASS[Math.round(((deg % 360) + 360) % 360 / 22.5) % 16];
+}
+function wxTemp(n) { return n == null || !isFinite(n) ? '—' : Math.round(n) + '°'; }
+function wxPrecip(prob, sum, units) {
+  const bits = [];
+  if (prob != null && isFinite(prob)) bits.push(Math.round(prob) + '%');
+  if (sum != null && isFinite(sum) && sum > 0) bits.push(units === 'c' ? sum.toFixed(1) + ' mm' : (sum / 25.4).toFixed(2) + ' in');
+  return bits.length ? bits.join(' · ') : '0%';
+}
+function wxWind(speed, deg, units) {
+  if (speed == null || !isFinite(speed)) return '—';
+  const u = units === 'c' ? ' km/h' : ' mph';
+  const d = windDir(deg);
+  return Math.round(speed) + u + (d ? ' ' + d : '');
+}
+function dayLabel(iso, i) {
+  if (i === 0) return 'Today';
+  if (i === 1) return 'Tomorrow';
+  const d = new Date(iso + 'T12:00:00');
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' }).replace(',', '');
+}
+function hourLabel(iso, isNow) {
+  if (isNow) return 'Now';
+  const d = new Date(iso);
+  const h = d.getHours();
+  if (h === 0) return 'Midnight';
+  const h12 = ((h + 11) % 12) + 1;
+  return h12 + (h < 12 ? ' AM' : ' PM');
+}
+
+function applyLayout() {
+  const st = $('#stage');
+  if (!st) return;
+  const layout = state.layout === 'right' ? 'right' : 'below';
+  const themeCls = [...st.classList].filter(c => c.startsWith('t-') || c.startsWith('a-')).join(' ');
+  st.className = (themeCls + ' layout-' + layout).trim();
+}
+
+async function resolveWeatherPlace(query) {
+  const q = String(query || '').trim();
+  if (!q) throw new Error('Type a city or place name');
+  const j = await getJSON('https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(q) + '&count=1&language=en&format=json');
+  const hit = (j.results || [])[0];
+  if (!hit) throw new Error('No place found for "' + q.slice(0, 40) + '"');
+  const parts = [hit.name, hit.admin1, hit.country_code].filter(Boolean);
+  return { lat: hit.latitude, lon: hit.longitude, label: parts.join(', '), place: q };
+}
+
+async function fetchWeather() {
+  if (!(state.weatherLat != null && state.weatherLon != null)) {
+    WX.data = null; WX.err = '';
+    renderWeather();
+    return;
+  }
+  if (WX.busy) return;
+  WX.busy = true;
+  WX.err = '';
+  renderWeather();
+  const units = state.weatherUnits === 'c' ? 'c' : 'f';
+  const temp = units === 'c' ? 'celsius' : 'fahrenheit';
+  const wind = units === 'c' ? 'kmh' : 'mph';
+  /* Daily first (small), then hourly — keeps something on screen if hourly is slow. */
+  const base = 'https://api.open-meteo.com/v1/forecast?latitude=' + encodeURIComponent(state.weatherLat) +
+    '&longitude=' + encodeURIComponent(state.weatherLon) +
+    '&timezone=auto&forecast_days=7&temperature_unit=' + temp + '&windspeed_unit=' + wind + '&precipitation_unit=mm';
+  const dailyUrl = base + '&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,windspeed_10m_max,winddirection_10m_dominant';
+  const hourUrl = base + '&hourly=weathercode,temperature_2m,precipitation_probability,windspeed_10m,winddirection_10m';
+  try {
+    const daily = await getJSON(dailyUrl, { timeout: 20000 });
+    WX.data = { daily: daily.daily, hourly: null, timezone: daily.timezone };
+    WX.err = ''; WX.fail = 0; WX.okAt = Date.now();
+    if (WX.day < 0 || WX.day > 6) WX.day = 0;
+    renderWeather();
+    try {
+      const hourly = await getJSON(hourUrl, { timeout: 25000 });
+      WX.data.hourly = hourly.hourly;
+      WX.okAt = Date.now();
+      renderWeather();
+    } catch (he) {
+      WX.err = 'Daily ok · hourly ' + errText(he);
+      renderWeather();
+    }
+    WX.next = Date.now() + WX.every;
+  } catch (e) {
+    WX.fail++; WX.err = errText(e);
+    WX.next = Date.now() + Math.min(15000 * (2 ** Math.min(WX.fail, 4)), 120000);
+    renderWeather();
+  } finally { WX.busy = false; }
+}
+
+function pumpWeather(now) {
+  if (!(state.weatherLat != null && state.weatherLon != null)) return;
+  if (WX.busy || now < (WX.next || 0)) return;
+  fetchWeather();
+}
+
+function hoursForDay(dayIso) {
+  const h = WX.data && WX.data.hourly; if (!h || !h.time) return [];
+  const out = [];
+  for (let i = 0; i < h.time.length; i++) if (h.time[i].slice(0, 10) === dayIso) out.push(i);
+  return out;
+}
+
+function renderWeather() {
+  const place = $('#wxPlace'), status = $('#wxStatus'), days = $('#wxDays'), hours = $('#wxHours');
+  if (!place || !days || !hours) return;
+  const units = state.weatherUnits === 'c' ? 'c' : 'f';
+  place.textContent = state.weatherLabel || 'Weather';
+  days.textContent = '';
+  hours.textContent = '';
+  if (!(state.weatherLat != null && state.weatherLon != null)) {
+    status.textContent = '';
+    days.appendChild(mk('div', 'wx-empty', 'Set a location in Settings → Weather.'));
+    if (typeof Disp !== 'undefined' && Disp.fitWeather) Disp.fitWeather();
+    return;
+  }
+  if (!WX.data || !WX.data.daily) {
+    status.textContent = WX.err ? WX.err : (WX.busy ? 'Loading…' : 'Connecting…');
+    const empty = mk('div', 'wx-empty', WX.err ? ('Could not load forecast (' + WX.err + ').') : 'Loading forecast…');
+    if (WX.err) {
+      const retry = mk('button', 'btn sm', 'Retry');
+      retry.type = 'button';
+      retry.style.marginLeft = '10px';
+      retry.onclick = () => { WX.next = 0; fetchWeather(); };
+      empty.appendChild(retry);
+    }
+    days.appendChild(empty);
+    if (typeof Disp !== 'undefined' && Disp.fitWeather) Disp.fitWeather();
+    return;
+  }
+  status.textContent = WX.err ? WX.err : (WX.okAt ? 'Updated ' + agoTextWx(WX.okAt) : '');
+  const d = WX.data.daily;
+  const n = Math.min(7, (d.time || []).length);
+  for (let i = 0; i < n; i++) {
+    const btn = mk('button', 'wx-day');
+    btn.type = 'button';
+    btn.setAttribute('role', 'option');
+    btn.setAttribute('aria-selected', i === WX.day ? 'true' : 'false');
+    btn.dataset.i = i;
+    const code = d.weathercode[i];
+    const ico = mk('span', 'ico'); ico.innerHTML = wxSvg(WX_ICON[code] || 'cloud');
+    const meta = mk('span', 'meta', wxPrecip(d.precipitation_probability_max[i], d.precipitation_sum[i], units) + '\n' + wxWind(d.windspeed_10m_max[i], d.winddirection_10m_dominant[i], units));
+    meta.style.whiteSpace = 'pre-line';
+    const temps = mk('span', 'temps');
+    temps.append(mk('span', 'hi', wxTemp(d.temperature_2m_max[i])), mk('span', 'lo', wxTemp(d.temperature_2m_min[i])));
+    btn.append(mk('span', 'lab', dayLabel(d.time[i], i)), ico, temps, meta);
+    days.appendChild(btn);
+  }
+  renderHours();
+  if (typeof Disp !== 'undefined' && Disp.fitWeather) Disp.fitWeather();
+}
+
+function renderHours() {
+  const hours = $('#wxHours'); if (!hours || !WX.data || !WX.data.daily) return;
+  const d = WX.data.daily, h = WX.data.hourly, units = state.weatherUnits === 'c' ? 'c' : 'f';
+  hours.textContent = '';
+  if (!h || !h.time) {
+    hours.appendChild(mk('div', 'wx-empty', WX.busy ? 'Loading hourly…' : 'Hourly unavailable.'));
+    return;
+  }
+  const dayIso = d.time[WX.day];
+  const now = new Date();
+  /* Show a rolling 12-hour window. On today it starts at the current hour (now first); on other days at that day's 00:00. */
+  let start;
+  if (WX.day === 0) {
+    const floor = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours()).getTime();
+    start = h.time.findIndex(t => new Date(t).getTime() >= floor);
+    if (start < 0) start = h.time.findIndex(t => t.slice(0, 10) === dayIso);
+  } else {
+    start = h.time.findIndex(t => t.slice(0, 10) === dayIso);
+  }
+  if (start < 0) { hours.appendChild(mk('div', 'wx-empty', 'No hourly data for that day.')); return; }
+  const end = Math.min(start + 12, h.time.length);
+  for (let i = start; i < end; i++) {
+    const t = new Date(h.time[i]);
+    const isNow = WX.day === 0 && t.getHours() === now.getHours() && t.toDateString() === now.toDateString();
+    const el = mk('div', 'wx-hour' + (isNow ? ' now' : ''));
+    el.setAttribute('role', 'listitem');
+    const ico = mk('span', 'ico'); ico.innerHTML = wxSvg(WX_ICON[h.weathercode[i]] || 'cloud');
+    const meta = mk('span', 'meta', wxPrecip(h.precipitation_probability[i], null, units) + '\n' + wxWind(h.windspeed_10m[i], h.winddirection_10m[i], units));
+    meta.style.whiteSpace = 'pre-line';
+    el.append(mk('span', 'lab', hourLabel(h.time[i], isNow)), ico, mk('span', 'temp', wxTemp(h.temperature_2m[i])), meta);
+    hours.appendChild(el);
+  }
+}
+
+function agoTextWx(t) {
+  const s = Math.round((Date.now() - t) / 1000);
+  if (s < 90) return s + 's ago';
+  if (s < 5400) return Math.round(s / 60) + ' min ago';
+  return Math.round(s / 3600) + ' h ago';
+}
+
+function wireWeather() {
+  const days = $('#wxDays');
+  if (days) days.addEventListener('click', e => {
+    const b = e.target.closest('.wx-day'); if (!b) return;
+    WX.day = +b.dataset.i || 0;
+    renderWeather();
+    scheduleWxReturn();
+  });
+}
+
+async function applyWeatherSettings() {
+  const msg = $('#wxMsg'), raw = $('#wxLoc').value;
+  setMsg(msg, 'Looking up…');
+  try {
+    state.weatherUnits = $('#wxUnits').value === 'c' ? 'c' : 'f';
+    if (!String(raw || '').trim()) {
+      state.weatherPlace = state.weatherLabel = '';
+      state.weatherLat = state.weatherLon = null;
+      WX.data = null; WX.next = 0; save(); renderWeather();
+      setMsg(msg, 'Location cleared.', 'ok');
+      return;
+    }
+    const r = await resolveWeatherPlace(raw);
+    state.weatherPlace = r.place; state.weatherLat = r.lat; state.weatherLon = r.lon; state.weatherLabel = r.label;
+    $('#wxLoc').value = r.label;
+    WX.next = 0; WX.day = 0; WX.data = null; WX.fail = 0; save();
+    setMsg(msg, 'Using ' + r.label + '.', 'ok');
+    await fetchWeather();
+  } catch (e) { setMsg(msg, String(e.message || e), 'err'); }
+}
+
+/* ================= rotation entries ================= */
+const P = (base, quote, on, sources) => ({ type: 'price', base, quote, sources: sources || [], on: !!on });
+const C = (tz, on, label, h12) => ({ type: 'clock', tz, label: label || '', h12: !!h12, on: !!on });
+const Vt = (key, on) => ({ type: 'vital', key, on: !!on });
+const itemId = it => it.type === 'price' ? 'p:' + it.base + '/' + it.quote + ':' + [...it.sources].sort().join(',')
+  : it.type === 'clock' ? 'c:' + it.tz + ':' + (it.h12 ? 12 : 24) + ':' + it.label : 'v:' + it.key;
+function defaults() {
+  return [P('BTC', 'USD', 1), P('XAU-BTCU', 'USD', 1), P('ETH', 'USD', 1), P('BTC', 'ETH', 1), P('XAU', 'USD', 1), P('BTC', 'XAU', 1), P('EUR', 'USD', 1), C(LOCAL_TZ, 1), Vt('height', 1), Vt('subsidy', 1), Vt('fees', 1),
+    P('NVDA', 'USD', 0), P('NVDA', 'XAU', 0), P('USD', 'SATS', 0), P('SOL', 'USD', 0), P('XAG', 'USD', 0), P('USD', 'JPY', 0), P('BTC', 'EUR', 0),
+    C('UTC', 0), C('America/New_York', 0), C('Europe/London', 0), C('Asia/Tokyo', 0),
+    Vt('since', 0), Vt('difficulty', 0), Vt('nextadj', 0), Vt('retarget', 0), Vt('hashrate', 0), Vt('halving', 0), Vt('supply', 0), Vt('mempool', 0), Vt('mcap', 0)];
+}
+function validItem(it) {
+  if (!it || typeof it !== 'object') return false;
+  if (it.type === 'price') { if (!Array.isArray(it.sources)) it.sources = []; it.sources = it.sources.filter(id => S[id]); return !!(A[it.base] && A[it.quote]); }
+  if (it.type === 'clock') return typeof it.tz === 'string';
+  return it.type === 'vital' && !!VITALS[it.key];
+}
+function load() {
+  try { const j = JSON.parse(localStorage.getItem(LS)); if (j && j.v === 1) Object.assign(state, j); } catch (e) { /* first run or storage blocked */ }
+  if (!Array.isArray(state.custom)) state.custom = [];
+  state.custom = state.custom.filter(c => c && /^[A-Z0-9.\-]{1,12}$/.test(c.sym || '') && CLS_NAME[c.cls]);
+  state.custom.forEach(c => { if (!A[c.sym]) def(c.sym, String(c.name || c.sym).slice(0, 40), c.cls, Object.assign(c.cls === 'stock' ? { unit: 'shares of ' + (c.name || c.sym) } : {}, c.cg ? { cg: String(c.cg) } : {})); });
+  if (!Array.isArray(state.items) || !state.items.length) state.items = defaults();
+  state.items = state.items.filter(validItem);
+  for (const k in VITALS) if (!state.items.some(i => i.type === 'vital' && i.key === k)) state.items.push(Vt(k, 0));
+  /* entries added in later versions appear once for people who already have saved settings */
+  if (!state.seenGoldUnit) { state.seenGoldUnit = true; if (!state.items.some(i => i.type === 'price' && i.base === 'XAU-BTCU')) state.items.unshift(P('XAU-BTCU', 'USD', 1)); }
+  state.goldTonnes = Math.min(1e7, Math.max(1, +state.goldTonnes || 220700));
+  if (state.goldUnits !== 'cap') state.goldUnits = 'issued';
+  if (!THEME[state.theme]) state.theme = 'flip';
+  if (!state.accent || typeof state.accent !== 'object') state.accent = {};
+  state.cells = Math.min(14, Math.max(6, +state.cells || 10));
+  state.dwell = Math.min(120, Math.max(2, +state.dwell || 8));
+  state.key = String(state.key || '');
+  if (state.layout !== 'right') state.layout = 'below';
+  if (state.weatherUnits !== 'c') state.weatherUnits = 'f';
+  state.weatherReturn = Math.min(120, Math.max(3, +state.weatherReturn || 20));
+  state.weatherPlace = String(state.weatherPlace || '');
+  state.weatherLabel = String(state.weatherLabel || '');
+  if (state.weatherLat != null) state.weatherLat = +state.weatherLat;
+  if (state.weatherLon != null) state.weatherLon = +state.weatherLon;
+  if (!isFinite(state.weatherLat) || !isFinite(state.weatherLon)) { state.weatherLat = state.weatherLon = null; }
+}
+function save() { try { localStorage.setItem(LS, JSON.stringify(state)); } catch (e) { /* storage blocked: settings last for this visit only */ } }
+
+/* ================= rotation loop ================= */
+let cur = null, shownAt = 0, ticks = 0;
+function frame() {
+  const now = Date.now(), act = activeItems();
+  if (!act.length) { cur = null; Disp.show({ label: 'NOTHING SELECTED', value: null, info: ['OPEN SETTINGS AND TICK SOMETHING IN THE ROTATION LIST'] }); return; }
+  if (!act.includes(cur)) { cur = act[0]; shownAt = now; markCur(); }
+  else if (!state.paused && act.length > 1 && now - shownAt >= state.dwell * 1000) { cur = act[(act.indexOf(cur) + 1) % act.length]; shownAt = now; markCur(); }
+  Disp.show(viewOf(cur));
+}
+function go(d) {
+  const act = activeItems(); if (!act.length) return;
+  const i = act.indexOf(cur); cur = act[((i < 0 ? 0 : i + d) + act.length) % act.length]; shownAt = Date.now(); markCur(); frame();
+}
+function jumpTo(it) { cur = it; shownAt = Date.now(); markCur(); frame(); }
+
+/* ================= settings panel ================= */
+const TAG = { price: 'price', clock: 'clock', vital: 'bitcoin' };
+function itemText(it) {
+  if (it.type === 'price') {
+    const b = A[it.base], q = A[it.quote];
+    return { nm: dispOf(it.base) + ' in ' + dispOf(it.quote), sb: (b ? b.name : it.base) + ' priced in ' + (q ? unitOf(q) : it.quote) + ' · ' + (it.sources.length ? it.sources.map(id => S[id].name).join(', ') : 'automatic source') };
+  }
+  if (it.type === 'clock') return { nm: 'Clock: ' + (it.label || tzCity(it.tz)), sb: it.tz + ' · ' + (it.h12 ? '12-hour' : '24-hour') };
+  return { nm: VITALS[it.key].name, sb: 'Bitcoin network · mempool.space' };
+}
+function renderList() {
+  const list = $('#msList'), f = $('#msFilter').value.trim().toLowerCase();
+  list.textContent = '';
+  state.items.forEach((it, i) => {
+    const t = itemText(it);
+    if (f && !(t.nm + ' ' + t.sb + ' ' + TAG[it.type]).toLowerCase().includes(f)) return;
+    const row = mk('div', 'it' + (it === cur ? ' cur' : '')); row.dataset.i = i;
+    const lab = mk('label'), cb = mk('input'); cb.type = 'checkbox'; cb.checked = !!it.on;
+    const tx = mk('span', 'tx'); tx.append(mk('span', 'nm', t.nm), mk('span', 'sb', t.sb));
+    lab.append(cb, tx);
+    const ops = mk('span', 'ops');
+    [['up', '▲', 'Move up'], ['down', '▼', 'Move down']].concat(it.type === 'vital' ? [] : [['del', '✕', 'Remove']]).forEach(([a, ch, title]) => { const b = mk('button', '', ch); b.dataset.act = a; b.title = title; b.setAttribute('aria-label', title + ': ' + t.nm); ops.appendChild(b); });
+    row.append(lab, mk('span', 'tg ' + it.type, TAG[it.type]), ops);
+    list.appendChild(row);
+  });
+  if (!list.children.length) list.appendChild(mk('div', 'hint', 'Nothing matches that filter.')).style.padding = '10px';
+  const on = activeItems().length;
+  $('#msSum').textContent = on + ' of ' + state.items.length + ' showing in rotation';
+}
+function markCur() {
+  if (!document.body.classList.contains('open')) return;
+  document.querySelectorAll('#msList .it').forEach(r => r.classList.toggle('cur', state.items[+r.dataset.i] === cur));
+}
+function changed() { save(); renderList(); frame(); pump(Date.now()); pumpVitals(Date.now()); }
+
+function fillAssetList() {
+  const dl = $('#dlAssets'); dl.textContent = '';
+  Object.values(A).sort((x, y) => x.sym < y.sym ? -1 : 1).forEach(a => { const o = mk('option'); o.value = a.sym; o.label = a.name + ' · ' + CLS_NAME[a.cls]; dl.appendChild(o); });
+}
+const apSel = new Set();
+const rootOf = a => (a && a.of ? A[a.of] : a);
+function refreshBuilder() {
+  const bv = $('#apBase').value.trim(), qv = $('#apQuote').value.trim();
+  const b = findAsset(bv), q = findAsset(qv || 'USD'), hint = $('#apHint'), box = $('#apSrc');
+  if (!bv) hint.textContent = 'Pick any asset and anything to price it in: BTC in ETH, NVDA in gold, gold in euros.';
+  else if (b && q) hint.textContent = 'One ' + b.name + ' priced in ' + unitOf(q) + '.';
+  else hint.textContent = (!b ? bv.toUpperCase() : qv.toUpperCase()) + ' is new: it will be looked up when you add it.';
+  const ids = Object.values(S).filter(s => [b, q].some(a => { const r = rootOf(a); return r && r.sym !== 'USD' && s.covers(r); })).map(s => s.id);
+  [...apSel].forEach(id => { if (!ids.includes(id)) apSel.delete(id); });
+  box.textContent = '';
+  if (!ids.length) return;
+  const chip = (id, text, title) => { const c = mk('button', 'chip', text); c.dataset.id = id; c.title = title; c.setAttribute('aria-pressed', id ? apSel.has(id) : !apSel.size); box.appendChild(c); };
+  chip('', 'Auto', 'Use the best available source for each side');
+  ids.forEach(id => chip(id, S[id].name, 'Tick several to show their median'));
+}
+async function resolveSym(raw, type) {
+  const s = String(raw || '').trim().toUpperCase(); if (!s) return null;
+  const known = findAsset(s); if (known) return known;
+  if (!/^[A-Z0-9.\-]{1,12}$/.test(s)) throw new Error('"' + s.slice(0, 20) + '" is not a valid symbol');
+  const add = (name, cls, x) => {
+    name = String(name || s).slice(0, 40);
+    const a = def(s, name, cls, Object.assign(cls === 'stock' ? { unit: 'shares of ' + name } : {}, x || {}));
+    state.custom.push({ sym: s, name, cls, cg: a.cg || undefined }); fillAssetList(); return a;
+  };
+  const stock = async () => {
+    let j; try { j = await S.finnhub.quote(s); } catch (e) { throw new Error('Finnhub: ' + errText(e)); }
+    if (!(j.c > 0)) return null;
+    S.finnhub.put(s, { usd: j.c, chg: j.dp != null ? j.dp / 100 : null, hi: j.h || null, lo: j.l || null, asof: j.t ? j.t * 1000 : null });
+    let name = s;
+    try { const r = await getJSON('https://finnhub.io/api/v1/search?q=' + encodeURIComponent(s) + '&token=' + encodeURIComponent(state.key)); const hit = (r.result || []).find(x => x.symbol === s); if (hit && hit.description) name = hit.description; } catch (e) { /* name is optional */ }
+    return add(name, 'stock');
+  };
+  if (type === 'stock') {
+    if (!state.key) throw new Error('Stocks need a free Finnhub key. Add it under Data sources.');
+    const a = await stock(); if (a) return a;
+    throw new Error('Finnhub has no quote for ' + s);
+  }
+  if (type === 'auto') { try { if (!S.erapi.list) await S.erapi.loadList(); if (S.erapi.list.has(s)) return add(s, 'fiat'); } catch (e) { /* carry on */ } }
+  let cg = null, name = null, onCb = false;
+  try {
+    const j = await getJSON('https://api.coingecko.com/api/v3/search?query=' + encodeURIComponent(s));
+    const hit = (j.coins || []).filter(c => String(c.symbol).toUpperCase() === s).sort((x, y) => (x.market_cap_rank || 1e9) - (y.market_cap_rank || 1e9))[0];
+    if (hit) { cg = String(hit.id); name = hit.name; }
+  } catch (e) { /* carry on */ }
+  try { if (!S.coinbase.list) await S.coinbase.loadList(); onCb = S.coinbase.list.has(s); } catch (e) { /* carry on */ }
+  if (onCb || (cg && (type === 'crypto' || !state.key))) return add(name, 'crypto', cg ? { cg } : {});
+  if (type === 'auto' && state.key) { const a = await stock(); if (a) return a; }
+  if (cg) return add(name, 'crypto', { cg });
+  throw new Error(type === 'crypto' || state.key ? 'Nothing found for ' + s : s + ' was not found as a crypto or currency. Stocks need a Finnhub key (see Data sources).');
+}
+function setMsg(el, text, cls) { el.textContent = text || ''; el.className = 'msg' + (cls ? ' ' + cls : ''); }
+let adding = false;
+async function addPrice() {
+  if (adding) return; adding = true;
+  const m = $('#apMsg'); setMsg(m, 'Looking up…');
+  try {
+    const type = $('#apType').value;
+    const b = await resolveSym($('#apBase').value, type); if (!b) throw new Error('Type an asset symbol first');
+    const q = await resolveSym($('#apQuote').value || 'USD', type);
+    if (b.sym === q.sym) throw new Error('The asset and what it is priced in are the same');
+    const it = P(b.sym, q.sym, 1, [...apSel]), dup = state.items.find(x => itemId(x) === itemId(it));
+    const target = dup || it;
+    if (dup) dup.on = true; else state.items.unshift(it);
+    setMsg(m, dup ? 'Already in the list, now switched on.' : 'Added ' + dispOf(b.sym) + ' in ' + dispOf(q.sym) + '.', 'ok');
+    $('#apBase').value = ''; $('#apQuote').value = ''; apSel.clear(); refreshBuilder();
+    cur = target; shownAt = Date.now(); changed();
+  } catch (e) { setMsg(m, String(e.message || e), 'err'); }
+  adding = false;
+}
+function addClock() {
+  const m = $('#acMsg'); let tz = $('#acTz').value.trim();
+  if (!tz) { setMsg(m, 'Type a time zone, such as Europe/Paris', 'err'); return; }
+  const all = tzList(), hit = all.find(z => z.toLowerCase() === tz.toLowerCase()) || all.find(z => tzCity(z).toLowerCase() === tz.toLowerCase());
+  if (hit) tz = hit;
+  try { new Intl.DateTimeFormat('en-GB', { timeZone: tz }); } catch (e) { setMsg(m, '"' + tz.slice(0, 30) + '" is not a known time zone', 'err'); return; }
+  const it = C(tz, 1, $('#acLabel').value.trim().slice(0, 24), $('#acH12').checked), dup = state.items.find(x => itemId(x) === itemId(it));
+  if (dup) dup.on = true; else state.items.unshift(it);
+  setMsg(m, dup ? 'Already in the list, now switched on.' : 'Added a clock for ' + (it.label || tzCity(tz)) + '.', 'ok');
+  $('#acTz').value = ''; $('#acLabel').value = '';
+  cur = dup || it; shownAt = Date.now(); changed();
+}
+let _tz = null;
+function tzList() {
+  if (_tz) return _tz;
+  try { _tz = ['UTC', ...Intl.supportedValuesOf('timeZone')]; }
+  catch (e) { _tz = ['UTC', 'America/Los_Angeles', 'America/Denver', 'America/Chicago', 'America/New_York', 'America/Sao_Paulo', 'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Africa/Johannesburg', 'Asia/Dubai', 'Asia/Kolkata', 'Asia/Singapore', 'Asia/Hong_Kong', 'Asia/Shanghai', 'Asia/Tokyo', 'Australia/Sydney', 'Pacific/Auckland']; }
+  return _tz;
+}
+function renderThemes() {
+  const g = $('#thGrid'); g.textContent = '';
+  Object.values(THEME).forEach(t => { const b = mk('button', '', t.name); b.dataset.id = t.id; b.setAttribute('aria-pressed', t.id === state.theme); g.appendChild(b); });
+  const row = $('#acRow'), th = THEME[state.theme], sel = state.accent[th.id] || 0; row.textContent = '';
+  th.acc.forEach(([n, c], i) => { const b = mk('button', 'chip'); const sw = mk('i'); sw.style.background = c; b.append(sw, n); b.dataset.i = i; b.setAttribute('aria-pressed', i === sel); row.appendChild(b); });
+}
+function agoText(t) { const s = Math.round((Date.now() - t) / 1000); return s < 90 ? s + 's ago' : s < 5400 ? Math.round(s / 60) + ' min ago' : Math.round(s / 3600) + ' h ago'; }
+function renderSources() {
+  const box = $('#srcList'), need = needs(); box.textContent = '';
+  const line = (name, url, cls, text) => {
+    const r = mk('div', 'src'), n = mk('span', 'n'), a = mk('a', '', name); a.href = url; a.target = '_blank'; a.rel = 'noopener'; n.appendChild(a);
+    r.append(mk('span', 'dot ' + cls), n, mk('span', 's', text)); box.appendChild(r);
+  };
+  Object.values(S).forEach(s => {
+    const used = need.has(s.id);
+    if (s.off()) line(s.name, s.url, used ? 'err' : '', s.offMsg);
+    else if (s.err) line(s.name, s.url, 'err', s.err + (s.okAt ? ' · last good ' + agoText(s.okAt) : ''));
+    else if (s.okAt) line(s.name, s.url, used ? 'ok' : '', (used ? 'updated ' : 'not in use · last ') + agoText(s.okAt));
+    else line(s.name, s.url, used ? 'wait' : '', used ? 'connecting…' : 'not in use');
+  });
+  const vUsed = activeItems().some(i => i.type === 'vital');
+  line('mempool.space (Bitcoin network)', 'https://mempool.space', V.err ? 'err' : V.okAt ? (vUsed ? 'ok' : '') : vUsed ? 'wait' : '', V.err || (V.okAt ? 'updated ' + agoText(V.okAt) : vUsed ? 'connecting…' : 'not in use'));
+}
+function openPanel(open) {
+  document.body.classList.toggle('open', open);
+  if (open) { renderList(); renderSources(); }
+  setTimeout(() => Disp.fit(), 270); Disp.fit();
+}
+function syncControls() {
+  $('#dwell').value = state.dwell; $('#dwellOut').textContent = state.dwell + ' s';
+  $('#cells').value = state.cells; $('#cellsOut').textContent = state.cells;
+  $('#gTonnes').value = state.goldTonnes; $('#gUnits').value = state.goldUnits;
+  $('#optInfo').checked = !!state.info; $('#optSound').checked = !!state.sound; $('#fhKey').value = state.key;
+  $('#bPause').innerHTML = state.paused ? '&#9654;&#xFE0E;' : '&#10073;&#10073;';
+  $('#bPause').title = state.paused ? 'Resume (space)' : 'Pause (space)';
+  $('#wxLoc').value = state.weatherLabel || state.weatherPlace || '';
+  $('#wxUnits').value = state.weatherUnits === 'c' ? 'c' : 'f';
+  $('#wxReturn').value = state.weatherReturn; $('#wxReturnOut').textContent = state.weatherReturn + ' s';
+  document.querySelectorAll('#layoutRow .chip').forEach(c => c.setAttribute('aria-pressed', c.dataset.layout === state.layout ? 'true' : 'false'));
+}
+function wire() {
+  $('#bGear').onclick = () => openPanel(!document.body.classList.contains('open'));
+  $('#pClose').onclick = () => openPanel(false);
+  $('#bPrev').onclick = () => go(-1);
+  $('#bNext').onclick = () => go(1);
+  $('#bPause').onclick = () => { state.paused = !state.paused; shownAt = Date.now(); save(); syncControls(); };
+  $('#bFull').onclick = () => { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch (e) { /* not allowed */ } };
+  $('#msBtn').onclick = () => { const b = $('#msBtn'), open = b.getAttribute('aria-expanded') !== 'true'; b.setAttribute('aria-expanded', open); $('#msPop').hidden = !open; };
+  $('#msFilter').oninput = renderList;
+  $('#msAll').onclick = () => { state.items.forEach(i => i.on = true); changed(); };
+  $('#msNone').onclick = () => { state.items.forEach(i => i.on = false); changed(); };
+  $('#msList').addEventListener('change', e => { const r = e.target.closest('.it'); if (!r) return; const it = state.items[+r.dataset.i]; it.on = e.target.checked; if (it.on) { cur = it; shownAt = Date.now(); } changed(); });
+  $('#msList').addEventListener('click', e => {
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    const rows = [...document.querySelectorAll('#msList .it')], r = b.closest('.it'), i = +r.dataset.i, pos = rows.indexOf(r), a = b.dataset.act;
+    if (a === 'del') state.items.splice(i, 1);
+    else { const other = rows[pos + (a === 'up' ? -1 : 1)]; if (!other) return; const j = +other.dataset.i; [state.items[i], state.items[j]] = [state.items[j], state.items[i]]; }
+    changed();
+  });
+  $('#dwell').oninput = e => { state.dwell = +e.target.value; $('#dwellOut').textContent = state.dwell + ' s'; save(); };
+  $('#apBase').oninput = $('#apQuote').oninput = refreshBuilder;
+  $('#apSwap').onclick = () => { const b = $('#apBase'), q = $('#apQuote'), t = b.value; b.value = q.value; q.value = t; refreshBuilder(); };
+  $('#apSrc').addEventListener('click', e => { const c = e.target.closest('.chip'); if (!c) return; const id = c.dataset.id; if (!id) apSel.clear(); else if (apSel.has(id)) apSel.delete(id); else apSel.add(id); refreshBuilder(); });
+  $('#apAdd').onclick = addPrice;
+  [$('#apBase'), $('#apQuote')].forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') addPrice(); }));
+  $('#acAdd').onclick = addClock;
+  [$('#acTz'), $('#acLabel')].forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') addClock(); }));
+  $('#thGrid').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; state.theme = b.dataset.id; save(); renderThemes(); Disp.build(); renderWeather(); });
+  $('#acRow').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; state.accent[state.theme] = +b.dataset.i; save(); renderThemes(); Disp.build(); renderWeather(); });
+  $('#cells').oninput = e => { state.cells = +e.target.value; $('#cellsOut').textContent = state.cells; save(); Disp.build(); };
+  $('#optInfo').onchange = e => { state.info = e.target.checked; save(); Disp.build(); };
+  $('#optSound').onchange = e => { state.sound = e.target.checked; save(); if (state.sound) tick(); };
+  $('#fhKey').onchange = e => { state.key = e.target.value.trim(); const f = S.finnhub; f.fail = 0; f.err = ''; f.next = 0; f.miss.clear(); save(); renderSources(); frame(); };
+  $('#gTonnes').onchange = e => { state.goldTonnes = Math.min(1e7, Math.max(1, +e.target.value || 220700)); e.target.value = state.goldTonnes; save(); frame(); };
+  $('#gUnits').onchange = e => { state.goldUnits = e.target.value === 'cap' ? 'cap' : 'issued'; save(); frame(); pumpVitals(Date.now()); };
+  $('#layoutRow').addEventListener('click', e => {
+    const b = e.target.closest('[data-layout]'); if (!b) return;
+    state.layout = b.dataset.layout === 'right' ? 'right' : 'below';
+    save(); syncControls(); Disp.build(); renderWeather(); Disp.fit();
+  });
+  $('#wxApply').onclick = () => applyWeatherSettings();
+  $('#wxLoc').addEventListener('keydown', e => { if (e.key === 'Enter') applyWeatherSettings(); });
+  $('#wxReturn').oninput = e => { state.weatherReturn = +e.target.value; $('#wxReturnOut').textContent = state.weatherReturn + ' s'; save(); scheduleWxReturn(); };
+  wireWeather();
+  let armed = 0;
+  $('#bReset').onclick = e => {
+    if (Date.now() - armed > 4000) { armed = Date.now(); e.target.textContent = 'Click again to confirm reset'; setTimeout(() => { e.target.textContent = 'Reset everything'; }, 4000); return; }
+    try { localStorage.removeItem(LS); localStorage.removeItem(HLS); } catch (err) { /* ignore */ }
+    location.reload();
+  };
+  addEventListener('resize', () => Disp.fit());
+  addEventListener('keydown', e => {
+    if (e.target.closest && e.target.closest('input,select,textarea')) { if (e.key === 'Escape') e.target.blur(); return; }
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === ' ') { e.preventDefault(); $('#bPause').click(); }
+    else if (e.key === 'ArrowRight') go(1);
+    else if (e.key === 'ArrowLeft') go(-1);
+    else if (e.key === 'f' || e.key === 'F') $('#bFull').click();
+    else if (e.key === 's' || e.key === 'S') $('#bGear').click();
+    else if (e.key === 'Escape') openPanel(false);
+  });
+  let idle = 0;
+  const wake = () => { document.body.classList.remove('idle'); clearTimeout(idle); idle = setTimeout(() => document.body.classList.add('idle'), 3500); };
+  ['mousemove', 'mousedown', 'touchstart', 'keydown'].forEach(ev => addEventListener(ev, wake, { passive: true })); wake();
+}
+
+/* ================= start ================= */
+function boot() {
+  load();
+  fillAssetList();
+  const dz = $('#dlTz'); tzList().forEach(z => { const o = mk('option'); o.value = z; dz.appendChild(o); });
+  wire(); syncControls(); renderThemes(); refreshBuilder(); renderList();
+  Disp.build();
+  renderWeather();
+  onData = () => { frame(); };
+  frame(); pump(Date.now()); pumpVitals(Date.now()); pumpWeather(Date.now());
+  setInterval(() => {
+    const now = Date.now(); ticks++;
+    if (ticks % 4 === 0) { pump(now); pumpVitals(now); }
+    if (ticks % 120 === 0) pumpWeather(now);
+    if (ticks % 8 === 0 && document.body.classList.contains('open')) renderSources();
+    frame();
+  }, 250);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => Disp.fit());
+}
+boot();
+
+window.HD = { version: "0.2.0", state, A, S, V, Disp, WX, quote, legUSD, fmtNum, needs, viewOf, frame, renderWeather, fetchWeather };
+})();
+</script>
+</body>
+</html>

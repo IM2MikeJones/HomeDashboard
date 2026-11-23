@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="referrer" content="no-referrer">
+<title>HomeDashboard feed check</title>
+<style>
+body{font:14px/1.4 system-ui,sans-serif;margin:24px;background:#111;color:#ddd}
+h1{font-size:18px}p{color:#9aa}
+table{border-collapse:collapse;width:100%;max-width:1100px}
+th,td{border-bottom:1px solid #2a2a2a;padding:6px 8px;text-align:left;vertical-align:top}
+th{color:#9aa;font-weight:600}
+.ok{color:#4ade80}.bad{color:#f87171}.wait{color:#fbbf24}
+code{font-size:12px;color:#aab;word-break:break-all}
+</style>
+</head>
+<body>
+<h1>HomeDashboard feed check</h1>
+<p>Open this file straight from disk (double-click it), not from a web server. A page opened from disk has the origin <code>null</code>,
+exactly like <code>home-dashboard.html</code>, so a feed that answers here will answer in the app. Origin seen by this page: <code id="origin"></code></p>
+<table><thead><tr><th>Feed</th><th>Status</th><th>Answer (start)</th><th>URL</th></tr></thead><tbody id="rows"></tbody></table>
+<script>
+// "expect" says what a working answer looks like; "refuse" marks feeds the app deliberately does not use.
+const CHECKS = [
+  ['Coinbase rates', 'https://api.coinbase.com/v2/exchange-rates?currency=USD'],
+  ['Coinbase Exchange stats', 'https://api.exchange.coinbase.com/products/BTC-USD/stats'],
+  ['Coinbase Exchange direct pair', 'https://api.exchange.coinbase.com/products/ETH-BTC/stats'],
+  ['Kraken', 'https://api.kraken.com/0/public/Ticker?pair=XBTUSD,ETHUSD'],
+  ['Binance data mirror', 'https://data-api.binance.vision/api/v3/ticker/24hr?symbol=BTCUSDT'],
+  ['Gemini', 'https://api.gemini.com/v2/ticker/btcusd'],
+  ['CoinGecko', 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true'],
+  ['mempool.space price', 'https://mempool.space/api/v1/prices'],
+  ['mempool.space blocks', 'https://mempool.space/api/v1/blocks'],
+  ['mempool.space difficulty', 'https://mempool.space/api/v1/difficulty-adjustment'],
+  ['mempool.space hashrate', 'https://mempool.space/api/v1/mining/hashrate/3d'],
+  ['mempool.space fees', 'https://mempool.space/api/v1/fees/recommended'],
+  ['mempool.space mempool', 'https://mempool.space/api/mempool'],
+  ['gold-api.com', 'https://api.gold-api.com/price/XAU'],
+  ['Frankfurter', 'https://api.frankfurter.dev/v1/latest?base=USD'],
+  ['ExchangeRate-API', 'https://open.er-api.com/v6/latest/USD'],
+  ['Currency-API', 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json'],
+  ['Finnhub (401 without a key is a pass)', 'https://finnhub.io/api/v1/quote?symbol=NVDA', { pass401: true }],
+  ['Open-Meteo geocoding', 'https://geocoding-api.open-meteo.com/v1/search?name=London&count=1&language=en&format=json'],
+  ['Open-Meteo forecast', 'https://api.open-meteo.com/v1/forecast?latitude=51.5&longitude=-0.12&daily=weathercode,temperature_2m_max,temperature_2m_min&hourly=temperature_2m&timezone=auto&forecast_days=7'],
+  ['Bitstamp (not used; expected to fail)', 'https://www.bitstamp.net/api/v2/ticker/btcusd/', { refuse: true }]
+];
+document.getElementById('origin').textContent = self.origin;
+const tbody = document.getElementById('rows');
+for (const [name, url, opt = {}] of CHECKS) {
+  const tr = document.createElement('tr');
+  const cells = [name, 'checking…', '', url].map((t, i) => { const td = document.createElement('td'); if (i === 3) { const c = document.createElement('code'); c.textContent = t; td.appendChild(c); } else td.textContent = t; tr.appendChild(td); return td; });
+  cells[1].className = 'wait'; tbody.appendChild(tr);
+  const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 15000);
+  fetch(url, { signal: ctl.signal }).then(async r => {
+    const text = await r.text();
+    const ok = r.ok || (opt.pass401 && r.status === 401);
+    cells[1].textContent = (ok ? 'works' : 'answered') + ' · HTTP ' + r.status;
+    cells[1].className = ok ? (opt.refuse ? 'bad' : 'ok') : 'bad';
+    cells[2].textContent = text.slice(0, 120);
+  }).catch(e => {
+    cells[1].textContent = e.name === 'AbortError' ? 'timed out' : 'refused or unreachable';
+    cells[1].className = opt.refuse ? 'ok' : 'bad';
+  }).finally(() => clearTimeout(timer));
+}
+</script>
+</body>
+</html>

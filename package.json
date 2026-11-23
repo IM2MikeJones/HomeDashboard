@@ -1,0 +1,13 @@
+{
+  "name": "home-dashboard",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Single-file browser home dashboard for prices, clocks and Bitcoin vitals. The app itself has no dependencies; these are for the tests only.",
+  "scripts": {
+    "build": "python3 build.py",
+    "test": "python3 build.py && node test/run.js all && node test/ui.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.48.0"
+  }
+}
